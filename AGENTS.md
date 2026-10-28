@@ -47,7 +47,8 @@ badge/      mirrors the badge's /system drive: what this repo installs
   apps/menu/                 menu files this repo changes (icons, tile animation)
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made: scripts, sources, previews
-tools/      deploy.py, which installs badge/ paths onto the badge
+tools/      deploy.py, which installs badge/ paths onto the badge;
+            menu_icon.py, which adds an app's menu icon
 docs/       what's known about the badge
 ```
 
@@ -65,15 +66,19 @@ docs/       what's known about the badge
    lines, and check them against the frame budget.
 4. Install it with `python3 tools/deploy.py badge/apps/<folder_name>`. That
    verifies it and leaves the badge on the menu.
-5. For a menu icon, add an `ICONS` entry and recompile `icons.mpy` with
-   mpy-cross 1.29 ([menu.md](docs/menu.md)). Keep the stock originals.
+5. For a menu icon, write its contours and run `python3 tools/menu_icon.py
+   <folder_name> contours.json`. That adds the `ICONS` entry and compiles
+   `icons.mpy` ([menu.md](docs/menu.md)). Then deploy `badge/apps/menu`.
 6. Put whatever builds the assets (scripts, sources) in
    `examples/<name>/`, and make the app's behaviour knobs constants at the top
    of its `__init__.py`.
 
-## Example: Internet Creature Studios
+## Examples
 
-`badge/apps/internet_creature` draws the studio site's hills as live parallax
-layers that the badge's tilt steers, at about 30 fps.
-`examples/internet-creature-studios/` explains how its layers, sky, logo and
-menu icon were made.
+- **Internet Creature Studios** (`badge/apps/internet_creature`): the studio
+  site's hills as live parallax layers that tilt steers, at about 30 fps.
+  Baked image layers, tiled blits, motion blur. See
+  `examples/internet-creature-studios/`.
+- **Repo Defender** (`badge/apps/repo_defender`): a first-person shooter aimed
+  by turning, using the gyro. Drawn entirely with shapes, it has game states,
+  a saved high score and a geometric menu icon. See `examples/repo-defender/`.

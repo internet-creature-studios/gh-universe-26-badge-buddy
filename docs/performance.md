@@ -17,6 +17,15 @@ Measured on the badge in HIRES mode (320x240), with `time.ticks_us()`.
 | 256-colour palette PNG decode | ~55 ms, but it bands smooth gradients |
 | JPEG decode, same size | 67 to 80 ms: no faster than PNG |
 | `vec2(...)` | ~9 µs |
+| `screen.rectangle` filling the whole screen, or `screen.clear()` | ~0.58 ms: ~35 times cheaper than blitting the same area |
+| `screen.rectangle`, small | ~0.02 to 0.04 ms |
+| `screen.line`, 200 px | ~0.05 ms. It takes numbers (floats are fine) or two `vec2`s. |
+| `screen.text`, 20 characters | ~0.35 ms with `font.salty` (17 px tall), ~0.6 ms with `font.ignore` (28 px) |
+| `badge.imu()` | ~0.02 ms |
+
+**Drawn shapes are far cheaper than blitted images.** Prefer rectangles,
+lines and text for anything that changes every frame, and keep images for
+detail that can't be drawn.
 
 ## The frame budget
 

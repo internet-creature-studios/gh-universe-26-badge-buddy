@@ -1,8 +1,13 @@
 # Badgeware API notes
 
 The badge runs Pimoroni's Badgeware on MicroPython. These are the parts used
-and checked while building the example app. Badgeware hoists its names into
-builtins, so apps don't import them.
+and checked while building the examples.
+
+Badgeware's names (`badge`, `screen`, `image`, `BUTTON_LEFT`, `HIRES`, ...)
+resolve like builtins, so apps don't import them. They don't appear in
+`dir(builtins)` or `globals()`, though, and `getattr(builtins, name)` misses
+them. Refer to them by name, or with `eval(name)` inside `try/except
+NameError` (see [hardware.md](hardware.md#buttons)).
 
 ## App shape
 
@@ -42,7 +47,7 @@ finally:
 | `badge.default_clear` | The colour cleared before each `update()`, or `None` to keep the screen |
 | `badge.pressed(b)`, `held(b)`, `released(b)` | Button state. With no argument: any button. |
 | `badge.poll()` | Read the inputs. `run()` does this for you. |
-| `badge.imu()` | `(ax, ay, az, gx, gy, gz)`, raw; 16384 is 1 g. See [hardware.md](hardware.md#motion-sensor). |
+| `badge.imu()` | `(ax, ay, az, gx, gy, gz)`, raw; 16384 is 1 g. Costs ~0.02 ms. See [hardware.md](hardware.md#motion-sensor). |
 | `badge.ticks` | Milliseconds, as used by the menu |
 | `badge.battery_level()`, `badge.is_charging()` | |
 

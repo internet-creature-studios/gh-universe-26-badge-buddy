@@ -12,11 +12,15 @@ rediscovering how it works:
 
 ![The example app](examples/internet-creature-studios/preview/hills_layers.png)
 
-**Example:** Internet Creature Studios' logo over the studio site's hills,
-drawn live as parallax layers that race left or right as you tilt the badge.
-It runs at about 30 fps. The example also adds a `:3` menu icon with a
-blinking selection animation. See
-[examples/internet-creature-studios](examples/internet-creature-studios).
+**Examples:**
+
+- [Internet Creature Studios](examples/internet-creature-studios): the
+  studio's logo over its site's hills, drawn live as parallax layers that race
+  left or right as you tilt the badge, at about 30 fps. It adds a `:3` menu
+  icon with a blinking selection animation.
+- [Repo Defender](examples/repo-defender): defend your main branch from rogue
+  AI bots. Turn to aim (the gyro tracks you), weapons fire automatically, and
+  Left and Right switch them. It's playable seated.
 
 ## Start here
 
@@ -56,7 +60,7 @@ the back once.
 badge/      mirrors the badge's /system drive: what this repo installs
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made
-tools/      deploy.py: safe install with verification
+tools/      deploy.py: safe install with verification; menu_icon.py: menu icons
 docs/       what's known about the badge
 ```
 

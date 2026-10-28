@@ -37,8 +37,17 @@ ICONS = {
 ```
 
 The menu imports the compiled `icons.mpy` from `/system/apps/menu/`. The source
-is `/system/apps/menu/src/icons.py`, which isn't on the import path. To add an
-icon:
+is `/system/apps/menu/src/icons.py`, which isn't on the import path.
+
+The quick way:
+
+```bash
+python3 tools/menu_icon.py <app_folder_name> contours.json   # adds or replaces, then compiles
+python3 tools/deploy.py badge/apps/menu
+```
+
+Here `contours.json` is a list of contours, each a list of `[x, y]` points. To
+do it by hand:
 
 1. Copy `src/icons.py` off the badge, or start from `stock/apps/menu/src/`.
 2. Add your entry.
@@ -56,8 +65,13 @@ icon:
 A firmware update will probably replace these files. Keep the originals, which
 are in `stock/`, so you can restore them.
 
-`examples/internet-creature-studios/trace_icon.py` shows one way to make the
-contours: it traces a shape out of a logo image.
+There are two worked examples of making contours:
+
+- `examples/internet-creature-studios/trace_icon.py` traces a shape out of a
+  logo image.
+- `examples/repo-defender/make_icon.py` builds one from geometry. It shows a
+  hole (wound against the shape around it) and overlapping parts (all wound the
+  same way, so they add up rather than cancel).
 
 ## Selection animations
 

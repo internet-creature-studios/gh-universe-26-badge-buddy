@@ -15,7 +15,6 @@ above never changes, and the screen keeps its contents between refreshes, so
 it is drawn once.
 """
 
-import builtins
 import json
 import math
 import time
@@ -51,9 +50,13 @@ BLUR_RELEASE = 0.7
 
 
 def optional_button(name):
-    # Badgeware hoists its constants into builtins. Some simulators supply
-    # them as app globals instead, and not every firmware has Menu or Back.
-    return globals().get(name, getattr(builtins, name, None))
+    # Badgeware's button names resolve like builtins but aren't in builtins'
+    # or the app's namespace, so getattr and globals() miss them. Evaluating
+    # the name finds them; not every firmware has Menu or Back.
+    try:
+        return eval(name)
+    except NameError:
+        return None
 
 
 EXIT_BUTTONS = tuple(

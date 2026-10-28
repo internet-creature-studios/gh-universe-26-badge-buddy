@@ -36,6 +36,18 @@ gyro values. 16384 is 1 g.
   badge's right edge dips. It reaches full scale at about 30 degrees.
 - At the REPL it reads all zeros until `badge.poll()` has run. Inside an app's
   `run(update)` loop the firmware polls for you.
+- It reads about 540 times a second, including `badge.poll()`.
+- **Gyro:** about **110 raw units per degree per second**, from two full turns
+  of the badge measured by hand. That's close to the 114.3 a common ±250 °/s
+  setting gives, so fast flicks over ~250 °/s will clip.
+- **Gyro zero point:** at rest it read about (224, −390, 146). It shifts
+  between sessions, and in a hand it never reads still. Re-learn it during use
+  whenever the badge is steady.
+- **Turning however the badge is held:** take the gyro's component along the
+  accelerometer's gravity direction. Turning left reads positive.
+  `examples/repo-defender` does this.
+- The firmware also has `badge.imu_calibrate()`, `badge.imu_upright()` and
+  `badge.imu_event()`. None of them have been tried here.
 
 ## Storage
 
@@ -85,11 +97,29 @@ also ends with a reboot to the menu.
 
 ## Buttons
 
-Badgeware hoists button constants into builtins: `BUTTON_LEFT`,
-`BUTTON_RIGHT`, `BUTTON_UP`, `BUTTON_DOWN` and `BUTTON_SELECT` (used by the
-menu), and `BUTTON_BACK`. `BUTTON_MENU` and `BUTTON_HOME` may not exist on
-every firmware, so look them up with `getattr(builtins, ...)`. The menu reads
-them with `badge.pressed(b)` and `badge.held(b)`.
+| Name | What it is |
+| --- | --- |
+| `BUTTON_UP` | GPIO 11 |
+| `BUTTON_DOWN` | GPIO 6 |
+| `BUTTON_LEFT` | GPIO 7 |
+| `BUTTON_RIGHT` | GPIO 9 |
+| `BUTTON_SELECT` | GPIO 10 |
+| `BUTTON_HOME` | GPIO 22. The firmware also uses it to leave apps. |
+| `BUTTON_BACK`, `BUTTON_MENU` | Virtual buttons |
+
+Read them with `badge.pressed(b)`, `badge.held(b)` and `badge.released(b)`.
+`badge.pressed()` with no argument means any button.
+
+**These names resolve like builtins, but they aren't listed anywhere.**
+`dir(builtins)` and `globals()` don't show them, and `getattr(builtins,
+"BUTTON_BACK", None)` returns `None`. Use the name directly, or `eval(name)`
+inside `try/except NameError` for a button that might not exist. A
+`getattr` lookup leaves the button silently dead. `HIRES`, `VSYNC` and the
+other constants behave the same way.
+
+The badge also has touch (`badge.touch()`, `badge.touched()`), case lights
+(`badge.caselights`) and a light sensor (`badge.light_level`). None of them
+have been tried here.
 
 The back of the badge has a **RESET** button. Press it once to reboot to the
 menu, or double-tap it for disk mode (the `BADGER` drive). See
