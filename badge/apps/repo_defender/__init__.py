@@ -17,6 +17,10 @@ import math
 import random
 import time
 
+# The game's own version (see examples/repo-defender/CHANGELOG.md), not the
+# in-game "releases" each wave calls itself.
+VERSION = "0.1.0"
+
 # --- Aim -------------------------------------------------------------------
 
 # Raw gyro units per degree a second. Two full turns, holding the badge as
@@ -720,6 +724,9 @@ class Game:
                 "Left/Right: switch. Match the bot's colour.",
                 "Press enter to defend. Best: %d" % self.best,
             ], WEAPON_PENS[0])
+            screen.font = font.salty
+            screen.pen = MUTED
+            screen.text("Repo Defender v" + VERSION, 6, HEIGHT - 20)
             self.draw_enter_hint()
             if pressed(SELECT):
                 self.start()
