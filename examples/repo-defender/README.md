@@ -19,8 +19,15 @@ branch.
   - mega-agents, which turn up every third release, aren't weak to anything.
 - **Defend main.** A bot that reaches you merges into main and costs you
   integrity. Waves are releases, v0.1.0 and up.
-- **Buttons.** Select starts, Up re-centres your aim, and Back exits. The best
-  score is kept in `/state/repo_defender.json`.
+- **The splash.** It opens on the studio's logo: "internet", "creature" and
+  "studios" rise in one at a time, then the pink `:3` hops in. Any button
+  skips it.
+- **Buttons.** Select starts a game.
+  - **Pausing:** in a game, Select pauses, and Up and Down pick Resume, Restart
+    or Quit. Select confirms. Resume is the default, so Select twice is pause
+    and unpause.
+  - **While playing:** Up re-centres your aim. Back exits at any time.
+  - **Best score:** kept in `/state/repo_defender.json`.
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
 Everything is drawn with rectangles, lines and text, which cost a fraction of
@@ -40,6 +47,10 @@ runs at 30+ fps with no assets.
   about 0.4 seconds.
 - **The ±30° limit:** turning past it drags the centre along with you, which
   also soaks up whatever drift is left. Up re-centres.
+- **One projection for everything.** The grid, skyline, bots, shots and hit
+  tests all go through the same `View`. An early version drew the world
+  rotated one way and fired shots the other, and the two mistakes hid each
+  other until the bullets went the wrong way.
 
 Tuning knobs, at the top of the app:
 

@@ -6,8 +6,10 @@ weapons. Each bot is tinted the colour of the weapon it's weak to. A bot that
 reaches you merges itself into main and costs you integrity, and at zero the
 bots own the repo.
 
-Select starts and restarts, Up re-centres your aim, Back or Home exits. The
-best score is kept in /state/repo_defender.json.
+It opens on the studio's logo. Select starts a game, and in a game pauses it:
+Up and Down pick Resume, Restart or Quit, and Select confirms, so Select twice
+is pause and unpause. Up re-centres your aim while playing; Back or Home
+exits. The best score is kept in /state/repo_defender.json.
 """
 
 import json
@@ -20,9 +22,11 @@ import time
 # Raw gyro units per degree a second. Two full turns, holding the badge as
 # you play, measured 107 and 110 (the gyro's +-250 degree/s setting is 114).
 GYRO_LSB_PER_DPS = 110.0
-# A left turn reads positive around the accelerometer's "down"; aim runs
-# the other way.
-YAW_SIGN = -1
+# A left turn reads positive around the accelerometer's "down". This sign,
+# with View's rotation, gives the view motion playtesting liked; everything
+# (grid, skyline, bots, shots, hits) shares the one View, so it stays
+# consistent either way.
+YAW_SIGN = 1
 # How far either way you can aim. Turning further drags the centre along,
 # which also soaks up gyro drift.
 YAW_LIMIT = 30.0
@@ -65,6 +69,21 @@ BOTS = {
                  quip="rewrote the whole repo overnight"),
 }
 
+# --- Splash ----------------------------------------------------------------
+
+# The studio's logo, a line at a time, then the pink :3. Each piece is
+# (x, y, w, h) in assets/studio_logo.png and the second it appears.
+LOGO_AT = (44, 46)
+LOGO_PIECES = [
+    ((0, 0, 189, 41), 0.30),  # internet
+    ((0, 58, 204, 36), 0.75),  # creature
+    ((0, 107, 177, 41), 1.20),  # studios
+    ((190, 107, 42, 41), 1.85),  # :3
+]
+SPLASH_SECONDS = 3.4
+
+PAUSE_CHOICES = ["Resume", "Restart", "Quit"]
+
 WAVE_SECONDS = 25.0
 GAME_OVER_LINES = [
     "The bots renamed it skynet-final-v2.",
@@ -89,6 +108,7 @@ HOME = button("BUTTON_HOME")
 LEFT = button("BUTTON_LEFT")
 RIGHT = button("BUTTON_RIGHT")
 UP = button("BUTTON_UP")
+DOWN = button("BUTTON_DOWN")
 SELECT = button("BUTTON_SELECT")
 
 
@@ -119,6 +139,7 @@ WEAPON_PENS = [pen(w["rgb"]) for w in WEAPONS]
 WEAPON_DIM = [pen(dim(w["rgb"], 0.45)) for w in WEAPONS]
 MEGA_PEN = pen((255, 80, 200))
 MEGA_DIM = pen(dim((255, 80, 200), 0.45))
+SPLASH_BACKGROUND = pen((238, 245, 247))  # the studio site's horizon
 
 # Distant server towers on the horizon: (azimuth, width in degrees, height px).
 # A fixed seed keeps the skyline the same every launch; the game reseeds.
@@ -222,7 +243,10 @@ class View:
     """World (azimuth degrees, distance) to screen, for the current yaw."""
 
     def set(self, yaw):
-        r = math.radians(-yaw)
+        # Rotate the world by -yaw, so a point at azimuth a lands at
+        # tan(a - yaw): straight ahead of where you aim is the screen's centre,
+        # the same as screen_x uses for the skyline.
+        r = math.radians(yaw)
         self.cos = math.cos(r)
         self.sin = math.sin(r)
 
@@ -289,8 +313,16 @@ class Game:
     def __init__(self):
         self.aim = Aim()
         self.view = View()
-        self.state = "title"
+        self.state = "splash"
+        self.splash = 0.0
+        self.choice = 0
         self.best = load_best()
+        logo = image.load("assets/studio_logo.png")
+        self.logo = logo  # the pieces are windows onto it
+        self.logo_pieces = [
+            (logo.window(x, y, w, h), LOGO_AT[0] + x, LOGO_AT[1] + y, appear)
+            for (x, y, w, h), appear in LOGO_PIECES
+        ]
         self.reset()
 
     def reset(self):
@@ -573,15 +605,61 @@ class Game:
             screen.text(line, (WIDTH - lw) // 2, y)
             y += 17
 
+    def draw_splash(self):
+        screen.pen = SPLASH_BACKGROUND
+        screen.clear()
+        last = len(self.logo_pieces) - 1
+        for i, (window, x, y, appear) in enumerate(self.logo_pieces):
+            age = self.splash - appear
+            if age < 0:
+                continue
+            k = min(1.0, age / 0.3)
+            if i == last:
+                offset = -10 * math.sin(math.pi * k)  # the :3 hops in place
+            else:
+                offset = 8 * (1 - k) ** 2  # the words rise into place
+            screen.blit(window, vec2(x, y + offset))
+
+    def draw_game(self):
+        self.draw_world()
+        self.draw_bots()
+        self.draw_shots()
+        self.draw_hud()
+
+    def draw_pause(self):
+        left, top, width = 70, 56, WIDTH - 140
+        screen.pen = pen((0, 0, 0), 190)
+        screen.rectangle(left, top, width, 60 + 26 * len(PAUSE_CHOICES))
+        screen.font = font.ignore
+        screen.pen = WEAPON_PENS[0]
+        tw, _ = screen.measure_text("PAUSED")
+        screen.text("PAUSED", (WIDTH - tw) // 2, top + 8)
+        screen.font = font.salty
+        y = top + 48
+        for i, label in enumerate(PAUSE_CHOICES):
+            lw, _ = screen.measure_text(label)
+            if i == self.choice:
+                screen.pen = WEAPON_PENS[0]
+                screen.rectangle(left + 20, y - 3, width - 40, 22)
+                screen.pen = BLACK
+            else:
+                screen.pen = TEXT
+            screen.text(label, (WIDTH - lw) // 2, y)
+            y += 26
+
     def frame(self, dt):
-        if self.state != "play":
+        """Runs and draws one frame; True means quit the app."""
+        if self.state == "splash":
+            self.splash += dt
+            self.draw_splash()
+            if self.splash >= SPLASH_SECONDS or (self.splash > 0.4 and badge.pressed()):
+                self.state = "title"
+            return False
+
+        if self.state in ("title", "over"):
             # Aim isn't calibrated until a game starts; keep the view still
             # and let the floor stream by.
             self.scroll = (self.scroll + dt * 3.0) % 4.0
-        else:
-            self.aim.update(dt)
-            if pressed(UP):
-                self.aim.recentre()
 
         if self.state == "title":
             self.draw_world()
@@ -590,11 +668,11 @@ class Game:
                 "Rogue AI bots want your main branch.",
                 "Turn to aim. Your weapon fires itself.",
                 "Left/Right: switch. Match the bot's colour.",
-                "Press Select to defend. Best: %d" % self.best,
+                "Select: defend, and pause. Best: %d" % self.best,
             ], WEAPON_PENS[0])
             if pressed(SELECT):
                 self.start()
-            return
+            return False
 
         if self.state == "over":
             self.draw_world()
@@ -607,17 +685,44 @@ class Game:
             ], DANGER)
             if pressed(SELECT):
                 self.start()
-            return
+            return False
 
+        if self.state == "paused":
+            # Everything holds still; Up and Down pick, Select confirms.
+            if pressed(UP):
+                self.choice = (self.choice - 1) % len(PAUSE_CHOICES)
+            if pressed(DOWN):
+                self.choice = (self.choice + 1) % len(PAUSE_CHOICES)
+            if pressed(SELECT):
+                choice = PAUSE_CHOICES[self.choice]
+                if choice == "Quit":
+                    return True
+                if choice == "Restart":
+                    self.start()
+                    return False
+                self.state = "play"
+            self.draw_game()
+            if self.state == "paused":
+                self.draw_pause()
+            return False
+
+        if pressed(SELECT):
+            # Resume is the default, so Select twice is pause and unpause.
+            self.state = "paused"
+            self.choice = 0
+            self.draw_game()
+            self.draw_pause()
+            return False
+        self.aim.update(dt)
+        if pressed(UP):
+            self.aim.recentre()
         if pressed(LEFT):
             self.weapon = (self.weapon - 1) % len(WEAPONS)
         if pressed(RIGHT):
             self.weapon = (self.weapon + 1) % len(WEAPONS)
         self.update(dt)
-        self.draw_world()
-        self.draw_bots()
-        self.draw_shots()
-        self.draw_hud()
+        self.draw_game()
+        return False
 
     def start(self):
         self.draw_world()
@@ -668,7 +773,8 @@ def update():
     now = time.ticks_ms()
     dt = min(time.ticks_diff(now, last_tick), 100) / 1000
     last_tick = now
-    game.frame(dt)
+    if game.frame(dt):
+        return True
     return None
 
 
