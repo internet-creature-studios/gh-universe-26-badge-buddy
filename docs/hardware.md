@@ -91,7 +91,8 @@ menu), and `BUTTON_BACK`. `BUTTON_MENU` and `BUTTON_HOME` may not exist on
 every firmware, so look them up with `getattr(builtins, ...)`. The menu reads
 them with `badge.pressed(b)` and `badge.held(b)`.
 
-The back of the badge has a **RESET** button. See
+The back of the badge has a **RESET** button. Press it once to reboot to the
+menu, or double-tap it for disk mode (the `BADGER` drive). See
 [workflow.md](workflow.md#reset-and-recovery).
 
 ## Battery

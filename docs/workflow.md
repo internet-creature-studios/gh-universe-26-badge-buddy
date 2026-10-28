@@ -87,8 +87,9 @@ The serial connection drops, which is expected, and the `BADGER` drive mounts
 a few seconds later. It is `/system`: `BADGER/apps/<name>/` is
 `/system/apps/<name>/`.
 
-According to the firmware's own comments, double-tapping RESET does the same
-thing. That hasn't been tested here.
+By hand: **double-tap RESET** on the back of the badge. This is confirmed on a
+real badge, and the firmware handles it the same way as the software call.
+It's the way in when nothing can reach the badge over serial.
 
 **Ejecting** (`diskutil eject /Volumes/BADGER`) reboots the badge back to the
 menu.
@@ -134,7 +135,7 @@ it, so check `df -h /Volumes/BADGER`.
 | Done working over serial | `uvx mpremote connect /dev/cu.usbmodem1101 reset` reboots to the menu |
 | An app crashed | The launcher reboots to the menu by itself |
 | No serial port and no `BADGER` drive | The badge has hung. **Press RESET on the back once.** It comes back in serial mode with the menu |
-| Need disk mode | `powman.reset_into_msc()` over serial, or the Mass Storage app in the menu |
+| Need disk mode | Double-tap RESET, run `powman.reset_into_msc()` over serial, or open the Mass Storage app in the menu |
 
 Known ways to hang the badge so that it needs a RESET press:
 
