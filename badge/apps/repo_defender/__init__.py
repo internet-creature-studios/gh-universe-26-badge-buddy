@@ -22,11 +22,11 @@ import time
 # Raw gyro units per degree a second. Two full turns, holding the badge as
 # you play, measured 107 and 110 (the gyro's +-250 degree/s setting is 114).
 GYRO_LSB_PER_DPS = 110.0
-# A left turn reads positive around the accelerometer's "down". This sign,
-# with View's rotation, gives the view motion playtesting liked; everything
-# (grid, skyline, bots, shots, hits) shares the one View, so it stays
-# consistent either way.
-YAW_SIGN = 1
+# A left turn reads positive around the accelerometer's "down", and aim
+# (positive to the right) should follow it left: so -1. Everything (grid,
+# skyline, bots, shots, hits) goes through the one View, so flipping this
+# mirrors them all together.
+YAW_SIGN = -1
 # How far either way you can aim. Turning further drags the centre along,
 # which also soaks up gyro drift.
 YAW_LIMIT = 30.0
@@ -83,6 +83,33 @@ LOGO_PIECES = [
 SPLASH_SECONDS = 3.4
 
 PAUSE_CHOICES = ["Resume", "Restart", "Quit"]
+
+# --- The enter button --------------------------------------------------------
+
+# Where the enter button (printed with a return arrow) sits beside the
+# screen: below its bottom edge at this x. From tools/locate_buttons.py; see
+# docs/button_positions.json.
+ENTER_X = 255
+# The return-arrow glyph printed beside it, as one stroke in a 26 x 16 box:
+# a short bar along the top, a hook down the right, and a long bar back
+# along the bottom to an arrowhead pointing left.
+ENTER_GLYPH_SIZE = (26, 16)
+
+
+def enter_glyph_points():
+    w, h = ENTER_GLYPH_SIZE
+    r = h / 2
+    points = [(x, 0.0) for x in range(int(w * 0.45), int(w - r))]
+    for k in range(17):
+        a = -math.pi / 2 + math.pi * k / 16
+        points.append((w - r + r * math.cos(a), r + r * math.sin(a)))
+    points += [(x, float(h)) for x in range(int(w - r), 0, -1)]
+    for k in range(1, 6):  # the arrowhead's two barbs
+        points += [(k, h - k), (k, h + k)]
+    return points
+
+
+ENTER_GLYPH = enter_glyph_points()
 
 WAVE_SECONDS = 25.0
 GAME_OVER_LINES = [
@@ -620,6 +647,29 @@ class Game:
                 offset = 8 * (1 - k) ** 2  # the words rise into place
             screen.blit(window, vec2(x, y + offset))
 
+    def draw_enter_hint(self):
+        """A glowing return arrow, like the one printed on the badge, in the
+        bottom right corner, and an arrow down at the enter button itself."""
+        t = time.ticks_ms() / 1000
+        pulse = 0.5 + 0.5 * math.sin(t * 4.0)
+        glow = WEAPON_PENS[0]
+        halo = pen(WEAPONS[0]["rgb"], int(50 + 70 * pulse))
+        gw, gh = ENTER_GLYPH_SIZE
+        gx, gy = WIDTH - gw - 10, HEIGHT - gh - 12
+        for stroke, p in ((5, halo), (2, glow)):
+            screen.pen = p
+            for x, y in ENTER_GLYPH:
+                screen.rectangle(int(gx + x - stroke / 2), int(gy + y - stroke / 2), stroke, stroke)
+        # The pointer bobs down toward the button.
+        bob = int(3 * math.sin(t * 6.0))
+        tip = HEIGHT - 4 + bob
+        for stroke, p in ((5, halo), (2, glow)):
+            screen.pen = p
+            screen.rectangle(ENTER_X - stroke // 2, tip - 24, stroke, 20)
+            for k in range(8):
+                screen.rectangle(ENTER_X - k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
+                screen.rectangle(ENTER_X + k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
+
     def draw_game(self):
         self.draw_world()
         self.draw_bots()
@@ -668,8 +718,9 @@ class Game:
                 "Rogue AI bots want your main branch.",
                 "Turn to aim. Your weapon fires itself.",
                 "Left/Right: switch. Match the bot's colour.",
-                "Select: defend, and pause. Best: %d" % self.best,
+                "Press enter to defend. Best: %d" % self.best,
             ], WEAPON_PENS[0])
+            self.draw_enter_hint()
             if pressed(SELECT):
                 self.start()
             return False
@@ -681,8 +732,9 @@ class Game:
                 "REPO COMPROMISED",
                 self.quip,
                 "Score %d   Best %d" % (self.score, self.best),
-                "Select to try again",
+                "Press enter to try again",
             ], DANGER)
+            self.draw_enter_hint()
             if pressed(SELECT):
                 self.start()
             return False

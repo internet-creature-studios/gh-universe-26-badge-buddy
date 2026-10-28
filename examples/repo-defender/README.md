@@ -22,7 +22,10 @@ branch.
 - **The splash.** It opens on the studio's logo: "internet", "creature" and
   "studios" rise in one at a time, then the pink `:3` hops in. Any button
   skips it.
-- **Buttons.** Select starts a game.
+- **The title points at enter.** A glowing copy of the `↩` printed beside the
+  enter button sits in the bottom right, and an arrow bobs down at the button
+  itself (see [docs/button_positions.json](../../docs/button_positions.json)).
+- **Buttons.** Select (enter) starts a game.
   - **Pausing:** in a game, Select pauses, and Up and Down pick Resume, Restart
     or Quit. Select confirms. Resume is the default, so Select twice is pause
     and unpause.
@@ -50,7 +53,9 @@ runs at 30+ fps with no assets.
 - **One projection for everything.** The grid, skyline, bots, shots and hit
   tests all go through the same `View`. An early version drew the world
   rotated one way and fired shots the other, and the two mistakes hid each
-  other until the bullets went the wrong way.
+  other until the bullets went the wrong way. With one `View`, the only
+  direction choice left is `YAW_SIGN`. Turning left aims left, and the scenery
+  slides right.
 
 Tuning knobs, at the top of the app:
 

@@ -60,7 +60,8 @@ the back once.
 badge/      mirrors the badge's /system drive: what this repo installs
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made
-tools/      deploy.py: safe install with verification; menu_icon.py: menu icons
+tools/      deploy.py: safe install with verification; menu_icon.py: menu icons;
+            locate_buttons.py: where the buttons sit beside the screen
 docs/       what's known about the badge
 ```
 

@@ -48,7 +48,8 @@ badge/      mirrors the badge's /system drive: what this repo installs
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made: scripts, sources, previews
 tools/      deploy.py, which installs badge/ paths onto the badge;
-            menu_icon.py, which adds an app's menu icon
+            menu_icon.py, which adds an app's menu icon;
+            locate_buttons.py, which re-measures where the buttons sit
 docs/       what's known about the badge
 ```
 
@@ -72,6 +73,11 @@ docs/       what's known about the badge
 6. Put whatever builds the assets (scripts, sources) in
    `examples/<name>/`, and make the app's behaviour knobs constants at the top
    of its `__init__.py`.
+7. When the player has to press something, point at the physical button.
+   [docs/button_positions.json](docs/button_positions.json) says where each
+   one sits beside the screen ([api.md](docs/api.md#pointing-at-a-button)).
+   Enter (`↩`) is `BUTTON_SELECT`. Left and Right are in the bottom row, not
+   on the sides.
 
 ## Examples
 

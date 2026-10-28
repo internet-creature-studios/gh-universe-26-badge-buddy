@@ -1,0 +1,50 @@
+{
+  "about": "Where each button sits beside the 320x240 screen: the edge it's next to, and how far along that edge (x for top and bottom, y for left and right). From tools/locate_buttons.py.",
+  "buttons": {
+    "BUTTON_DOWN": {
+      "edge": "right",
+      "at": 167,
+      "laps": {
+        "1": 477.6,
+        "2": 496.6
+      },
+      "note": "both laps"
+    },
+    "BUTTON_LEFT": {
+      "edge": "bottom",
+      "at": 59,
+      "laps": {
+        "1": 814.7,
+        "2": 826.2
+      },
+      "note": "both laps"
+    },
+    "BUTTON_RIGHT": {
+      "edge": "bottom",
+      "at": 163,
+      "laps": {
+        "1": 707.2,
+        "2": 724.1
+      },
+      "note": "both laps"
+    },
+    "BUTTON_SELECT": {
+      "edge": "bottom",
+      "at": 255,
+      "laps": {
+        "1": 614.7,
+        "2": 633.6
+      },
+      "note": "both laps"
+    },
+    "BUTTON_UP": {
+      "edge": "right",
+      "at": 72,
+      "laps": {
+        "1": 385.2,
+        "2": 399.5
+      },
+      "note": "both laps"
+    }
+  }
+}

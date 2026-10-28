@@ -91,6 +91,28 @@ screen.shape(s)
 The menu's icons and tile animations are drawn this way. See
 [menu.md](menu.md).
 
+## Pointing at a button
+
+Players won't know which physical button is "Select". Show them: draw toward
+the button's spot beside the screen ([hardware.md](hardware.md#buttons)).
+Repo Defender's title screen does it with a glowing copy of the `↩` printed
+beside enter, and a bobbing arrow down at it:
+
+```python
+ENTER_X = 255   # BUTTON_SELECT: below the bottom edge, at this x
+
+def draw_enter_arrow(t):
+    tip = 236 + int(3 * math.sin(t * 6))   # bob toward the edge
+    screen.pen = color.rgb(90, 255, 140)
+    screen.rectangle(ENTER_X - 1, tip - 24, 2, 20)            # shaft
+    for k in range(8):                                          # head
+        screen.rectangle(ENTER_X - k - 1, tip - 4 - k - 1, 2, 2)
+        screen.rectangle(ENTER_X + k - 1, tip - 4 - k - 1, 2, 2)
+```
+
+For buttons on the right edge (Up and Down), point right at `x ≈ 316`, at
+their `y`.
+
 ## Also available
 
 - `display.update()`, `display.set_async(bool)`. Async made no measurable

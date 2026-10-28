@@ -97,15 +97,27 @@ also ends with a reboot to the menu.
 
 ## Buttons
 
-| Name | What it is |
-| --- | --- |
-| `BUTTON_UP` | GPIO 11 |
-| `BUTTON_DOWN` | GPIO 6 |
-| `BUTTON_LEFT` | GPIO 7 |
-| `BUTTON_RIGHT` | GPIO 9 |
-| `BUTTON_SELECT` | GPIO 10 |
-| `BUTTON_HOME` | GPIO 22. The firmware also uses it to leave apps. |
-| `BUTTON_BACK`, `BUTTON_MENU` | Virtual buttons |
+Five buttons sit around the screen's bottom right corner. The positions are
+measured on a badge with `tools/locate_buttons.py`, and are also in
+[button_positions.json](button_positions.json):
+
+| Name | Pin | Beside the 320 x 240 screen | Printed label |
+| --- | --- | --- | --- |
+| `BUTTON_UP` | GPIO 11 | right edge, y ≈ 72 | |
+| `BUTTON_DOWN` | GPIO 6 | right edge, y ≈ 167 | down chevron |
+| `BUTTON_LEFT` | GPIO 7 | bottom edge, x ≈ 59 | |
+| `BUTTON_RIGHT` | GPIO 9 | bottom edge, x ≈ 163 | |
+| `BUTTON_SELECT` | GPIO 10 | bottom edge, x ≈ 255 | return arrow (↩), "enter" |
+| `BUTTON_HOME` | GPIO 22 | | The firmware also uses it to leave apps |
+| `BUTTON_BACK`, `BUTTON_MENU` | virtual | | |
+
+Note that `BUTTON_LEFT` and `BUTTON_RIGHT` are both in the bottom row, not on
+the sides. Each measured position should be good to a few pixels: the tool
+averages a clockwise and an anticlockwise lap to cancel reaction time.
+
+To point at a button on screen, draw toward its edge at that position. For
+example, an arrow ending at `y = 236` at `x = 255` points down at enter. See
+[api.md](api.md#pointing-at-a-button).
 
 Read them with `badge.pressed(b)`, `badge.held(b)` and `badge.released(b)`.
 `badge.pressed()` with no argument means any button.
