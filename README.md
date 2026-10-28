@@ -39,13 +39,13 @@ USB-C. Everything else runs through `uvx`.
 ls /dev/cu.usbmodem*
 uvx mpremote connect /dev/cu.usbmodem1101 fs ls :/system/apps
 
-# Writing apps needs disk mode: the BADGER drive mounts
-uvx mpremote connect /dev/cu.usbmodem1101 exec "import powman; powman.reset_into_msc()"
+# Install the example app and its menu icon, then verify them on the badge
+python3 tools/deploy.py
 ```
 
-Then copy files from `badge/` to the same paths on `/Volumes/BADGER`. Read
-[docs/workflow.md](docs/workflow.md#copying-files-safely) first: macOS and the
-badge's FAT drive have a few traps. Eject, and the badge reboots to its menu.
+`tools/deploy.py` handles disk mode, the macOS traps with the badge's FAT
+drive, and checking the result on the badge itself. See
+[docs/workflow.md](docs/workflow.md#installing-with-the-deploy-script).
 
 If the badge shows no serial port and no drive, it has hung: press RESET on
 the back once.
@@ -56,6 +56,7 @@ the back once.
 badge/      mirrors the badge's /system drive: what this repo installs
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made
+tools/      deploy.py: safe install with verification
 docs/       what's known about the badge
 ```
 

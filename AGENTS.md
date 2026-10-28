@@ -17,10 +17,12 @@ Read these before touching the badge:
 
 ## Rules
 
-1. **Over serial, `/system` is read-only.** Don't retry writes there. Use disk
-   mode (`powman.reset_into_msc()`) and follow the copy steps in
-   [workflow.md](docs/workflow.md#copying-files-safely): delete then copy, clear
-   the `._*` files, and verify over serial afterwards.
+1. **Install with `python3 tools/deploy.py badge/<path>`.** Over serial,
+   `/system` is read-only, so don't retry writes there. The script goes
+   through disk mode safely and verifies on the badge
+   ([workflow.md](docs/workflow.md#installing-with-the-deploy-script)). Read
+   its output: a non-zero exit means something didn't land. Run `--dry-run`
+   before `--prune`.
 2. **Try apps from the writable root first** (`/dev_app` or similar) and
    install them only once they work. Remove test folders afterwards.
 3. **Never touch `/system/secrets.py`.** Don't copy it off the badge, print it
@@ -45,11 +47,11 @@ badge/      mirrors the badge's /system drive: what this repo installs
   apps/menu/                 menu files this repo changes (icons, tile animation)
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made: scripts, sources, previews
+tools/      deploy.py, which installs badge/ paths onto the badge
 docs/       what's known about the badge
 ```
 
-Deploying is copying `badge/<path>` to `/Volumes/BADGER/<path>`, only the
-files you mean to change.
+`badge/<path>` installs to `/system/<path>` on the badge.
 
 ## Making a new app
 
@@ -61,7 +63,8 @@ files you mean to change.
    frame.
 3. Copy it to `/dev_app` and run it over serial with a timeout. Print timing
    lines, and check them against the frame budget.
-4. Install it in disk mode, verify, and reset to the menu.
+4. Install it with `python3 tools/deploy.py badge/apps/<folder_name>`. That
+   verifies it and leaves the badge on the menu.
 5. For a menu icon, add an `ICONS` entry and recompile `icons.mpy` with
    mpy-cross 1.29 ([menu.md](docs/menu.md)). Keep the stock originals.
 6. Put whatever builds the assets (scripts, sources) in

@@ -46,6 +46,34 @@ drive, see [reset and recovery](#reset-and-recovery).
 
 3. Reset the badge to the menu, and remove `/dev_app` when you're finished.
 
+## Installing with the deploy script
+
+`tools/deploy.py` installs files from `badge/` and does every step below for
+you. It plans and verifies over serial, so the Mac's cache never gets the
+last word:
+
+```bash
+python3 tools/deploy.py badge/apps/my_app             # one app (paths inside badge/)
+python3 tools/deploy.py                               # everything in badge/
+python3 tools/deploy.py badge/apps/my_app --dry-run   # show what would change
+python3 tools/deploy.py badge/apps/my_app --prune     # also delete files the repo no longer has
+```
+
+- **Planning:** it hashes the badge's copies over serial first. If nothing
+  differs, it stops without entering disk mode.
+- **Copying:** it checks there's room, switches to disk mode, deletes and then
+  freshly copies only the files that differ, removes the `._` files macOS
+  added, and ejects.
+- **Checking:** it hashes every file again on the badge, flags any new `._`
+  files, and resets the badge to its menu. Any mismatch makes it exit non-zero.
+- **`--prune`:** works only on app folders (`badge/apps/<name>`), never on
+  `apps/` or `apps/menu`, because those hold the firmware's own files. It
+  lists what it will delete; check that with `--dry-run` first.
+- **`secrets.py`:** the script refuses to deploy it.
+
+It needs only Python 3 and `uv`. The rest of this section is what the script
+does, for when you need to do it by hand.
+
 ## Disk mode: writing `/system`
 
 Enter disk mode from software. It's the same call the stock Mass Storage app
