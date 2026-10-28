@@ -144,6 +144,24 @@ Known ways to hang the badge so that it needs a RESET press:
 When you try an untested native call, tell the person at the badge that it
 might need a RESET press.
 
+## Testing game rules on the badge
+
+Buttons can't be pressed from a script, but rules can still be checked on the
+real hardware:
+
+1. Read the app's source on the device.
+2. Swap its `run(update)` line for a function that sets up situations (spawn a
+   bot here, set a stat there) and calls the game's own update.
+3. Print `PASS` or `FAIL` for each check.
+4. `exec` the result.
+
+`examples/repo-defender/selftest.py` is a worked example: it checks reload
+timing, damage, pickups, shields and upgrade offers, then measures a busy
+scene's frame rate.
+
+When an assertion depends on randomness, such as a weaving bot's starting
+point, pin it in the test. Otherwise the test flakes.
+
 ## Benchmarking
 
 Time code on the device with `time.ticks_us()`. Inside an app, print a summary

@@ -7,18 +7,48 @@ branch.
 
 - **Aim by turning.** Turn your body, or just the badge, about 30 degrees either
   way, so it plays seated. The gyro does the aiming.
-- **Firing is automatic.** Left and Right switch between three weapons:
-  - **LINT**: rapid fire.
-  - **REVIEW**: heavy shots.
-  - **REVERT**: a short-range spread.
+- **Firing is automatic.** Left and Right switch between three weapons, each
+  with its own magazine:
+  - **LINT**: rapid fire, 30 shots.
+  - **REVIEW**: heavy shots, 4.
+  - **REVERT**: a short-range spread of 5 pellets, 3 blasts.
+- **Reloading.** An empty magazine reloads by itself. All three reload at
+  once, so switching away from an empty weapon keeps you firing.
 - **Match the colour.** Each bot is tinted the colour of the weapon it's weak
-  to, and takes triple damage from it:
-  - spam bots: LINT
-  - hallucinators, which weave: REVIEW
-  - force-pushers, which charge: REVERT
-  - mega-agents, which turn up every third release, aren't weak to anything.
-- **Defend main.** A bot that reaches you merges into main and costs you
-  integrity. Waves are releases, v0.1.0 and up.
+  to. The matching weapon does **2× damage**, and a kill with it scores **2×
+  points**, with a white flash and a "MATCH" score:
+  - spam bots (1 HP): LINT
+  - hallucinators (6 HP, they weave): REVIEW
+  - force-pushers (8 HP, they charge): REVERT
+  - mega-agents (30 HP, every third release) aren't weak to anything.
+- **Pickups.** A destroyed bot sometimes leaves one hovering. Shoot it within
+  4.5 s to collect it:
+  - **Hotfix** (pink): +25 health.
+  - **Cache Hit** (blue): restores a shield.
+  - **Overclock** (yellow): double fire rate for 5 s.
+- **Upgrades.** Each wave is a "release" (v0.1.0 and up). When one ships, the
+  game freezes on three upgrade cards. Left and Right choose, and enter takes
+  it. Each card shows the stat now and after.
+- **Defend main.** A bot that reaches you hits a shield if one's charged.
+  Otherwise it merges into main and costs you health.
+
+## Stats
+
+Every run starts from `BASE_STATS`, and each upgrade changes one stat:
+
+| Stat | Starts at | Upgrade | Per pick |
+| --- | --- | --- | --- |
+| Fire rate | 100% of each weapon's | Caffeinated CI | +15% |
+| Flat damage | +0 per pellet | Strong Typing | +1 |
+| Increased damage | +0% | 10x Engineer | +25% |
+| Pickup chance | 10% per kill | Bug Bounty | +8% |
+| Reload time | 1.2 s | Hot Reload | 15% faster |
+| Max health | 100 | Branch Protection | +20, and heals 20 |
+| Shields | 0 (up to 3) | Two-Factor Auth | +1, charged |
+
+Damage per pellet is `(weapon damage + flat) × (1 + increased) × 2 if matched`.
+A shield absorbs one bot completely. One comes back 8 s after a bot last
+reached you, then one every 8 s after that.
 - **The splash.** It opens on the studio's logo: "internet", "creature" and
   "studios" rise in one at a time, then the pink `:3` hops in. Any button
   skips it.
@@ -61,7 +91,25 @@ Tuning knobs, at the top of the app:
 
 - **Aim:** `YAW_LIMIT`, `YAW_SIGN`, `HFOV`.
 - **Pace:** `WAVE_SECONDS`, and the spawn curve in `Game.update`.
-- **Bots and weapons:** the `WEAPONS` and `BOTS` tables.
+- **Bots and weapons:** the `WEAPONS` and `BOTS` tables, and `MATCH`.
+- **Progression:** `BASE_STATS`, `UPGRADES`, `PICKUPS`, and the shield and
+  pickup timings.
+
+## Testing the rules on the badge
+
+[`selftest.py`](selftest.py) runs the game's own code on the badge with its
+run loop swapped for checks:
+
+- reload timing
+- matched and unmatched damage, and double points
+- pickups
+- shields absorbing a bot and recharging
+- the upgrade offers, including no shield upgrade past 3 shields
+- the upgrade and pause screens drawing
+
+Then it measures a busy scene's frame rate. Version 0.2.0 passes all 11
+checks, and the busy scene runs at 29 fps. How to run it is at the top of the
+file.
 
 ## The menu icon
 

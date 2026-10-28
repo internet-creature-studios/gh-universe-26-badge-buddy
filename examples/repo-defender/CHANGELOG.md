@@ -9,6 +9,40 @@ number is 0, anything can change between versions:
 Each release is tagged `repo-defender-v<version>`, because this repo holds
 several apps.
 
+## 0.2.0: stats and upgrades
+
+- **Player stats** that scale every weapon:
+  - fire rate
+  - flat damage
+  - increased damage
+  - pickup chance
+  - reload time
+  - max health
+  - 0–3 shields
+- **An upgrade pick at every release.** The game freezes on three cards, each
+  showing the stat now and after, with arrows pointing at Left, Right and
+  enter:
+  - Caffeinated CI
+  - Strong Typing
+  - 10x Engineer
+  - Bug Bounty
+  - Hot Reload
+  - Branch Protection
+  - Two-Factor Auth
+- **Magazines and reloading.** All weapons reload at once, so switching away
+  from an empty one keeps you firing.
+- **Shields** absorb a bot completely, and recharge 8 s after you were last
+  reached.
+- **Pickups** a destroyed bot sometimes leaves: Hotfix, Cache Hit and
+  Overclock. Shoot one before it fades to collect it.
+- **Matching your weapon to a bot's colour now does 2× damage and scores 2×
+  points**, with a white flash and a "MATCH" score. It used to do 3× damage
+  that hardly ever mattered, because REVIEW destroyed nearly every bot in one
+  hit regardless.
+- **Rebalanced.** REVIEW does 3 damage, not 4. Hallucinators have 6 HP,
+  force-pushers 8 and mega-agents 30.
+- **An on-badge self-test** of the rules (`selftest.py`).
+
 ## 0.1.0: first playable
 
 - **Aim by turning.** Turn your body, or just the badge, about 30 degrees either

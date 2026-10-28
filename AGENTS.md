@@ -64,7 +64,9 @@ docs/       what's known about the badge
 2. Load assets by relative path, and decode images once at launch, not per
    frame.
 3. Copy it to `/dev_app` and run it over serial with a timeout. Print timing
-   lines, and check them against the frame budget.
+   lines, and check them against the frame budget. For game rules, write an
+   on-badge self-test that swaps the run loop for checks
+   ([workflow.md](docs/workflow.md#testing-game-rules-on-the-badge)).
 4. Install it with `python3 tools/deploy.py badge/apps/<folder_name>`. That
    verifies it and leaves the badge on the menu.
 5. For a menu icon, write its contours and run `python3 tools/menu_icon.py
