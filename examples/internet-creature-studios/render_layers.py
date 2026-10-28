@@ -43,6 +43,7 @@ WIDTH, HEIGHT = 320, 240
 # sky: ground at infinity meets the sky at this row, and the far crests reach
 # up to about row 120.
 HORIZON = 135.0
+SKY_CLEAN_ROWS = 120  # rows of sky.png above its own hills
 FOCAL = 120 / math.tan(math.radians(16))  # the preset's 32 degree vertical fov
 EYE = 12.0  # the preset camera's height
 SS = 3  # supersampling per axis
@@ -511,15 +512,19 @@ def main(preset_path, source, out, mode="full"):
     logo = Image.open(os.path.join(source, "logo.png")).convert("RGBA")
     logo_at = (layout["logo_x"], layout["logo_y"])
 
-    # Below row 119 sky.png shows the site's own hills, so the sky band
-    # repeats that row down to the horizon.
-    clean = min(119, sky_bottom)
-    band_img = Image.new("RGBA", (WIDTH, sky_bottom - sky_top + 1))
-    for y in range(sky_top, sky_bottom + 1):
-        band_img.paste(frame.crop((0, min(y, clean), WIDTH, min(y, clean) + 1)), (0, y - sky_top))
-    band_img.convert("RGB").save(os.path.join(out, "sky_band.png"), optimize=True)
+    # Below row SKY_CLEAN_ROWS - 1, sky.png shows the site's own hills. Both
+    # sky images repeat that last clean row instead: the static one too, or
+    # a sliver of those hills hangs frozen above the live ones.
+    def sky(first, end):
+        img = Image.new("RGBA", (WIDTH, end - first))
+        for y in range(first, end):
+            row = min(y, SKY_CLEAN_ROWS - 1)
+            img.paste(frame.crop((0, row, WIDTH, row + 1)), (0, y - first))
+        return img
 
-    top_img = frame.crop((0, 0, WIDTH, sky_top))
+    sky(sky_top, sky_bottom + 1).convert("RGB").save(os.path.join(out, "sky_band.png"), optimize=True)
+
+    top_img = sky(0, sky_top)
     top_img.alpha_composite(logo, logo_at)
     top_img.convert("RGB").save(os.path.join(out, "sky_top.png"), optimize=True)
 
