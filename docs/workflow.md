@@ -4,15 +4,18 @@ The badge has two USB personalities. A normal boot gives a **serial port**,
 which runs MicroPython commands. **Disk mode** gives the `BADGER` drive,
 which is the only way to write `/system`, where apps live.
 
-The tools are run with `uv`, so nothing needs installing:
+For prerequisites and a first install, start with the
+[README](../README.md#install-on-your-badge). The commands here use `uvx`
+to provide `mpremote` and `mpy-cross` without separate installations.
+
+Find the serial port with `ls /dev/cu.usbmodem*`. Replace
+`YOUR_BADGE_PORT` in the commands below with the badge's full port path.
+If there's no port and no `BADGER` drive, see [reset and recovery](#reset-and-recovery).
 
 ```bash
-uvx mpremote connect /dev/cu.usbmodem1101 fs ls :/system/apps
+uvx mpremote connect YOUR_BADGE_PORT fs ls :/system/apps
 uvx mpy-cross --version   # v1.29, the version that matches the badge's .mpy files
 ```
-
-Find the port with `ls /dev/cu.usbmodem*`. If there's no port and no `BADGER`
-drive, see [reset and recovery](#reset-and-recovery).
 
 ## Serial mode (normal boot)
 
@@ -29,14 +32,14 @@ drive, see [reset and recovery](#reset-and-recovery).
 1. Copy the app and its assets to a folder on the root, such as `/dev_app`.
 
    ```bash
-   uvx mpremote connect /dev/cu.usbmodem1101 fs mkdir :/dev_app + fs cp -r myapp/. :/dev_app/
+   uvx mpremote connect YOUR_BADGE_PORT fs mkdir :/dev_app + fs cp -r myapp/. :/dev_app/
    ```
 
 2. Run it from that folder. The app's `run(update)` loop doesn't return until
    it exits, so cap the command with a timer:
 
    ```bash
-   perl -e 'alarm 15; exec @ARGV' uvx mpremote connect /dev/cu.usbmodem1101 \
+   perl -e 'alarm 15; exec @ARGV' uvx mpremote connect YOUR_BADGE_PORT \
      exec "import os; os.chdir('/dev_app'); exec(open('__init__.py').read(), {'__name__': '__main__'})"
    ```
 
@@ -59,8 +62,20 @@ python3 tools/deploy.py badge/apps/my_app --dry-run   # show what would change
 python3 tools/deploy.py badge/apps/my_app --prune     # also delete files the repo no longer has
 ```
 
+With no path, the script installs both example apps **and shared menu
+files**. Matching files are replaced, including the menu icon table; merge
+any custom icon entries first, or pass just an app folder. Extra files are
+kept unless you explicitly use `--prune`.
+
+The script detects a single serial port automatically. If several match,
+add `--port YOUR_BADGE_PORT`. Start in normal serial mode: if `BADGER` is
+already mounted, eject it and wait for the serial port before deploying.
+
 - **Planning:** it hashes the badge's copies over serial first. If nothing
   differs, it stops without entering disk mode.
+- **`--dry-run`:** writes no badge files, but still queries the connected
+  badge, interrupts the running app, and resets to the menu. `--no-reset`
+  skips that final reset; it doesn't prevent the serial interruption.
 - **Copying:** it checks there's room, switches to disk mode, deletes and then
   freshly copies only the files that differ, removes the `._` files macOS
   added, and ejects.
@@ -80,7 +95,7 @@ Enter disk mode from software. It's the same call the stock Mass Storage app
 makes:
 
 ```bash
-uvx mpremote connect /dev/cu.usbmodem1101 exec "import powman; powman.reset_into_msc()"
+uvx mpremote connect YOUR_BADGE_PORT exec "import powman; powman.reset_into_msc()"
 ```
 
 The serial connection drops, which is expected, and the `BADGER` drive mounts
@@ -116,9 +131,11 @@ time:
    can come from its cache, and unmounting to remount sometimes drops the badge
    out of disk mode. Pull the app back and compare:
 
+   Replace `YOUR_APP` with the installed app's folder name.
+
    ```bash
-   uvx mpremote connect /dev/cu.usbmodem1101 fs cp -r :/system/apps/<name> /tmp/check/
-   diff -r /tmp/check/<name> badge/apps/<name>
+   uvx mpremote connect YOUR_BADGE_PORT fs cp -r :/system/apps/YOUR_APP /tmp/check/
+   diff -r /tmp/check/YOUR_APP badge/apps/YOUR_APP
    ```
 
 Mass deletes and copies on the drive are slow: replacing about 400 small
@@ -132,7 +149,7 @@ it, so check `df -h /Volumes/BADGER`.
 
 | Situation | What to do |
 | --- | --- |
-| Done working over serial | `uvx mpremote connect /dev/cu.usbmodem1101 reset` reboots to the menu |
+| Done working over serial | `uvx mpremote connect YOUR_BADGE_PORT reset` reboots to the menu |
 | An app crashed | The launcher reboots to the menu by itself |
 | No serial port and no `BADGER` drive | The badge has hung. **Press RESET on the back once.** It comes back in serial mode with the menu |
 | Need disk mode | Double-tap RESET, run `powman.reset_into_msc()` over serial, or open the Mass Storage app in the menu |
@@ -177,7 +194,7 @@ with open("/dev_app/shot.raw", "wb") as f:
 Copy it off and convert it:
 
 ```bash
-uvx mpremote connect /dev/cu.usbmodem1101 fs cp :/dev_app/shot.raw shot.raw + fs rm :/dev_app/shot.raw
+uvx mpremote connect YOUR_BADGE_PORT fs cp :/dev_app/shot.raw shot.raw + fs rm :/dev_app/shot.raw
 python3 tools/raw2png.py shot.raw
 ```
 

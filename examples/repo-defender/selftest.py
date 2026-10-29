@@ -2,10 +2,10 @@
 
 Copy the app to /dev_game on the badge's writable root and run this there:
 
-    uvx mpremote connect /dev/cu.usbmodem1101 exec "import os; os.mkdir('/dev_game'); os.mkdir('/dev_game/assets')" \
+    uvx mpremote connect YOUR_BADGE_PORT exec "import os; os.mkdir('/dev_game'); os.mkdir('/dev_game/assets')" \
         + fs cp badge/apps/repo_defender/__init__.py :/dev_game/__init__.py \
         + fs cp badge/apps/repo_defender/assets/studio_logo.png :/dev_game/assets/studio_logo.png
-    uvx mpremote connect /dev/cu.usbmodem1101 exec "$(cat examples/repo-defender/selftest.py)"
+    uvx mpremote connect YOUR_BADGE_PORT exec "$(cat examples/repo-defender/selftest.py)"
 
 It runs the game's own source with its run loop swapped for these checks,
 prints PASS or FAIL for each, then plays a busy scene for six seconds and
