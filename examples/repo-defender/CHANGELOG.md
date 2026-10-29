@@ -26,6 +26,8 @@ several apps.
 - **Twice the ammo:** LINT 60 rounds, REVIEW 8, REVERT 6 blasts.
 - **Coffee's overdrive** now also fills every weapon, and uses no ammo until
   it ends, as well as doubling the fire rate.
+- **Pickups say what they gave:** "YUM +25 HP" for pizza, and "CACHE HIT +1
+  SHIELD" (or "SHIELDS FULL").
 - **Easier bots:** node_modules has 10 health (from 15) and bugs 3 (from 4).
 - **Fixed: tilt turning was mirrored.** Tipping right now turns right.
 - **A glowing ✓ over enter** on every screen, in place of the `↩` and arrow.

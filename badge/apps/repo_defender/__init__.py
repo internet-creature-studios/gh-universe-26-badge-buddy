@@ -1151,8 +1151,9 @@ class Game:
         label = pickup.spec["name"]
         if pickup.kind == "pizza":
             self.health = min(self.stats["max_health"], self.health + PIZZA_HEAL)
-            label = "PIZZA +%d" % PIZZA_HEAL
+            label = "YUM +%d HP" % PIZZA_HEAL
         elif pickup.kind == "cache":
+            label = "CACHE HIT +1 SHIELD" if self.shields < self.stats["shields"] else "CACHE HIT: SHIELDS FULL"
             self.shields = min(self.stats["shields"], self.shields + 1)
         elif pickup.kind == "coffee":
             # Overdrive: every weapon full and firing twice as fast, using no
