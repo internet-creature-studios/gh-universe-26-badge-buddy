@@ -32,8 +32,12 @@ otherwise.
 gyro values. 16384 is 1 g.
 
 - Lying flat and face up, z reads about -16384.
-- The menu's tilt reading, `-ax / 16384 * 2` clamped to ±1, is positive when the
-  badge's right edge dips. It reaches full scale at about 30 degrees.
+- **The readings point along gravity**, not against it (hence z's -16384 face
+  up). So tipping the badge's right edge down makes x rise: Repo Defender's
+  tilt turning first assumed the opposite, and playing it showed it mirrored.
+- The menu's tilt reading, `-ax / 16384 * 2` clamped to ±1, is therefore
+  positive when the badge's left edge dips. It reaches full scale at about 30
+  degrees.
 - At the REPL it reads all zeros until `badge.poll()` has run. Inside an app's
   `run(update)` loop the firmware polls for you.
 - It reads about 540 times a second, including `badge.poll()`.

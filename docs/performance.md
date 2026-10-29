@@ -54,6 +54,8 @@ Vector shapes and images (see [api.md](api.md#shapes)):
 | Building a combined shape with `shape.line` and `shape.combine` | ~0.15 ms a line |
 | Drawing a small model into an `image`, antialiased | 2 to 5 ms |
 | `screen.blit` of that image, scaled with a `rect` | 0.1 ms (15 px) to 1.2 ms (72 px) |
+| Baking a 106-triangle model: shading it in Python, then `img.triangle` at two sizes | ~45 ms, then ~28 ms |
+| The same bake making a `color.rgb` pen for every triangle | 68 ms: make each colour once |
 
 **A shape costs about the same however small it's drawn**: its cost goes by
 how many lines it has. For many small things, draw them once into images and

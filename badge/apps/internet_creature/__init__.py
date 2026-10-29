@@ -33,7 +33,7 @@ SKY_BAND_AT = vec2(0, scene["sky_top"])
 # leftward. Full tilt either way races the hills past at RACE times it.
 RACE = 24.0
 # Same reading as the menu's tilt: -ax against gravity, full at about 30
-# degrees, positive when the right edge dips. Flip TILT_SIGN if the hills
+# degrees, positive when the left edge dips. Flip TILT_SIGN if the hills
 # run the opposite way to the tip.
 GRAVITY = 16384.0
 TILT_SIGN = 1

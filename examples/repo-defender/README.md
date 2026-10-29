@@ -15,18 +15,18 @@ branch. It plays seated.
   start with LINT, and win the others from upgrade cards. Left and Right switch
   between the weapons you have, and the ones you aren't holding slowly refill,
   a full magazine in about 6 s. Each one suits different situations:
-  - **LINT**: green, rapid fire, a 30-round magazine.
+  - **LINT**: green, rapid fire, a 60-round magazine.
   - **REVIEW**: blue, heavy shots that **pierce** through everything in a line,
-    4 rounds.
-  - **REVERT**: orange, a wide spread of 5 pellets, 3 blasts. Good against
+    8 rounds.
+  - **REVERT**: orange, a wide spread of 5 pellets, 6 blasts. Good against
     anything swaying, up close.
 - **Bots** are neon wireframe creatures with white-hot eyes, and each kind comes
   at you its own way:
 
   | Bot | Approach | Health | Looks like |
   | --- | --- | --- | --- |
-  | Bug | fastest, straight at you | 4 | a yellow six-legged mite, scuttling |
-  | node_modules | slowest, straight, tanky | 15 (3 REVIEW shots) | a cyan domed pillbug whose armour drops off as you hit it |
+  | Bug | fastest, straight at you | 3 | a yellow six-legged mite, scuttling |
+  | node_modules | slowest, straight, tanky | 10 (2 REVIEW shots) | a cyan domed pillbug whose armour drops off as you hit it |
   | Hallucination | sways side to side, medium speed | 2 | a pink jellyfish with mismatched eyes, tentacles rippling, turning as it sways |
   | Rogue agent | slow boss, every third release | 30 | a red horned dragon, wings beating |
 
@@ -36,8 +36,12 @@ branch. It plays seated.
 - **Pickups** sometimes drop when you destroy a bot. One lands 12° to 19° to the
   side of where you're aiming, so you see it before you shoot it, and bobs up
   and down. Shoot it within 4.5 s to collect it:
+
+  ![Coffee and pizza near and far, then a Cache Hit and rm -rf, captured from the badge](preview/pickups.png)
+
   - **Pizza**: +25 health.
-  - **Coffee**: overdrive, double fire rate for 5 s.
+  - **Coffee**: overdrive for 5 s. Every weapon you have is filled, fires twice
+    as fast, and uses no ammo until it ends.
   - **Cache Hit**: a shield back. It only drops once you have shields.
   - **rm -rf**: deletes every bot on the field, except the rogue agent, which
     had backups.
@@ -114,16 +118,16 @@ The side buttons always mean the same thing, and overlays beside them show it:
 There's more on screen:
 
 - **The splash** shows the studio's logo, a line at a time, then the pink `:3`.
-- **The title and menus** point at the buttons they use: a glowing copy of the
-  printed `↩` and an arrow for enter. The upgrade screen puts a `<`, `>` and ✓
-  right over Left, Right and enter. The positions come from
+- **Every screen marks the buttons it uses** with glowing, bobbing marks right
+  over them: a ✓ over enter, and on the upgrade screen, a `<` and `>` over Left
+  and Right. The positions come from
   [docs/button_positions.json](../../docs/button_positions.json).
 - **The best score and settings** are kept in `/state/repo_defender.json`.
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
 Its only image asset is the logo. Everything else is drawn with shapes.
 
-## How the bots are drawn
+## How the bots and pickups are drawn
 
 The creatures were designed as 3D wireframes (see
 [design/enemies](../../design/enemies)). Each is a list of points and the
@@ -144,8 +148,14 @@ tentacles, the dragon's wings, and node_modules at four levels of damage.
   it's drawn, so the first five sizes are drawn once, antialiased, into
   images, which `screen.blit` scales to the exact size. That took 12 distant
   bots from 39 ms to about 11.
-- **Built ahead.** All 79 models take about 1.4 s and 840 KB to build, a few
-  each frame behind the splash and title screens.
+- **Low-poly pickups.** The coffee and pizza (see
+  [design/powerups](../../design/powerups)) are filled triangles, flat-shaded
+  in three tones by how each faces the light and drawn far to near. That's
+  too many triangles to draw every frame, so each frame of them (the coffee's
+  six of steam, the pizza's one) is baked into images at two sizes, and
+  scaled into place like the distant bots.
+- **Built ahead.** All 79 bot models and 7 pickup frames take about 2.1 s and
+  880 KB to build, a few each frame behind the splash and title screens.
 
 ## How aiming works
 
@@ -198,7 +208,7 @@ run loop swapped for 36 checks. They cover:
 - every screen and bot drawing
 
 Then it measures the frame rate of a busy scene. All 36 checks pass. The busy
-scene, with 12 bots and 4 pickups at once, runs at about 19 to 20 fps (the
+scene, with 12 bots and 4 pickups at once, runs at about 19 to 21 fps (the
 old flat heads managed 21 to 24); normal play has far fewer on screen. How to
 run it is at the top of the file.
 

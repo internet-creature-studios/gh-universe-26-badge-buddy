@@ -21,6 +21,14 @@ several apps.
   They're native vector shapes, and small ones are drawn from images baked at
   launch (see the README). Health bars only show once a bot is hurt. A close
   bot flashes white when hit, and a distant one pops.
+- **Low-poly coffee and pizza**, from Grok's designs in `design/powerups`:
+  flat-shaded triangles, baked into images. The coffee's steam sways.
+- **Twice the ammo:** LINT 60 rounds, REVIEW 8, REVERT 6 blasts.
+- **Coffee's overdrive** now also fills every weapon, and uses no ammo until
+  it ends, as well as doubling the fire rate.
+- **Easier bots:** node_modules has 10 health (from 15) and bugs 3 (from 4).
+- **Fixed: tilt turning was mirrored.** Tipping right now turns right.
+- **A glowing ✓ over enter** on every screen, in place of the `↩` and arrow.
 - **Fixed: trails along the horizon.** The sky stopped a row short of the
   floor, so anything crossing the horizon left streaks there.
 

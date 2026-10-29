@@ -1,4 +1,8 @@
-# Repo Defender: low-poly powerup proposals (art only; the game is unchanged)
+# Repo Defender: low-poly powerup proposals
+
+**In the game since 0.3.0**, ported into `badge/apps/repo_defender/__init__.py`
+as proposed: shaded once at a fixed yaw and pitch, with the triangles sorted,
+then baked into images at two sizes (see examples/repo-defender/README.md).
 
 The game already uses `screen.triangle`, so these are filled, flat-shaded triangles in 3 tones per colour (light, mid and shadow), not wireframe.
 The colours come from the game's existing pens: CUP, COFFEE, CRUST, PEPPERONI and the pizza pickup yellow.

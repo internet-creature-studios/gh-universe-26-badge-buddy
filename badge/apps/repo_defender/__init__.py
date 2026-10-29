@@ -49,11 +49,12 @@ STILL_FRAMES = 12
 # Tilt turning: tip the badge left or right to turn that way, hold it as it
 # was at the start to stop. Past the dead zone (how far it's tipped, as the
 # sine of the angle), turning speeds up to TILT_DPS at a tip of TILT_FULL.
-# Positive tips the right edge down, and turns right.
+# Tipping the right edge down raises the accelerometer's x reading (found in
+# play: the first guess was mirrored), so TILT_SIGN makes that a right turn.
 TILT_DPS = 70.0
 TILT_DEADZONE = 0.08
 TILT_FULL = 0.5
-TILT_SIGN = 1
+TILT_SIGN = -1
 
 # --- View ------------------------------------------------------------------
 
@@ -75,11 +76,11 @@ SPAWN_ARC = 28.0  # bots appear within this many degrees of straight ahead
 # for the run.
 WEAPONS = [
     dict(name="LINT", rgb=(90, 255, 140), rate=7.0, damage=1, pellets=1, gap=0.0, speed=40.0, reach=34.0,
-         radius=0.25, magazine=30, pierce=False),
+         radius=0.25, magazine=60, pierce=False),
     dict(name="REVIEW", rgb=(100, 170, 255), rate=1.6, damage=5, pellets=1, gap=0.0, speed=32.0, reach=34.0,
-         radius=0.5, magazine=4, pierce=True),
+         radius=0.5, magazine=8, pierce=True),
     dict(name="REVERT", rgb=(255, 160, 60), rate=1.3, damage=1, pellets=5, gap=3.5, speed=36.0, reach=14.0,
-         radius=0.3, magazine=3, pierce=False),
+         radius=0.3, magazine=6, pierce=False),
 ]
 # A weapon you aren't holding refills itself: a full magazine in this many
 # reload times.
@@ -89,9 +90,9 @@ HOLSTER_REFILL = 5.0
 # own way of coming at you. hit: health lost on reaching you. weave: degrees
 # it sways either side. height: where its middle floats. rgb: its neon.
 BOTS = {
-    "bug": dict(name="A bug", hp=4, speed=4.6, weave=0.0, size=0.32, height=0.5, points=20, hit=10,
+    "bug": dict(name="A bug", hp=3, speed=4.6, weave=0.0, size=0.32, height=0.5, points=20, hit=10,
                 quip="made it into prod", rgb=(244, 255, 58)),
-    "node_modules": dict(name="node_modules", hp=15, speed=1.5, weave=0.0, size=0.55, height=0.6, points=50, hit=20,
+    "node_modules": dict(name="node_modules", hp=10, speed=1.5, weave=0.0, size=0.55, height=0.6, points=50, hit=20,
                          quip="installed 40,000 packages into main", rgb=(46, 246, 255)),
     "hallucination": dict(name="A hallucination", hp=2, speed=2.6, weave=11.0, size=0.36, height=0.85, points=15, hit=8,
                           quip="added a package that doesn't exist", rgb=(255, 61, 242)),
@@ -181,7 +182,7 @@ WEAPON_CARDS = [
 # before it fades to collect it. weight: how often it's the one dropped.
 PICKUPS = {
     "pizza": dict(name="PIZZA", rgb=(255, 200, 80), weight=35),  # heals
-    "coffee": dict(name="COFFEE", rgb=(200, 140, 90), weight=35),  # overdrive
+    "coffee": dict(name="COFFEE", rgb=(200, 140, 90), weight=35),  # overdrive: full ammo that lasts, faster fire
     "cache": dict(name="CACHE HIT", rgb=(120, 200, 255), weight=20),  # a shield back
     "rmrf": dict(name="rm -rf", rgb=(255, 70, 90), weight=10),  # deletes every bot
 }
@@ -213,34 +214,13 @@ DEFAULT_SETTINGS = dict(turning="rotate")
 # --- The buttons -------------------------------------------------------------
 
 # Where the buttons sit beside the screen, from tools/locate_buttons.py (see
-# docs/button_positions.json): Left, Right and enter (printed with a return
-# arrow) below the bottom edge at these x, Up and Down beside the right edge
-# at these y.
+# docs/button_positions.json): Left, Right and enter below the bottom edge at
+# these x, Up and Down beside the right edge at these y.
 LEFT_X = 59
 RIGHT_X = 163
 ENTER_X = 255
 UP_Y = 72
 DOWN_Y = 167
-# The return-arrow glyph printed beside enter, as one stroke in a 26 x 16
-# box: a short bar along the top, a hook down the right, and a long bar back
-# along the bottom to an arrowhead pointing left.
-ENTER_GLYPH_SIZE = (26, 16)
-
-
-def enter_glyph_points():
-    w, h = ENTER_GLYPH_SIZE
-    r = h / 2
-    points = [(x, 0.0) for x in range(int(w * 0.45), int(w - r))]
-    for k in range(17):
-        a = -math.pi / 2 + math.pi * k / 16
-        points.append((w - r + r * math.cos(a), r + r * math.sin(a)))
-    points += [(x, float(h)) for x in range(int(w - r), 0, -1)]
-    for k in range(1, 6):  # the arrowhead's two barbs
-        points += [(k, h - k), (k, h + k)]
-    return points
-
-
-ENTER_GLYPH = enter_glyph_points()
 
 
 def polyline(*corners):
@@ -252,8 +232,9 @@ def polyline(*corners):
     return points + [corners[-1]]
 
 
-# What the upgrade screen shows right over Left, Right and enter: points
-# around the button's x, up from just above the bottom edge.
+# What the screens show right over Left, Right and enter (a checkmark: it
+# takes what's chosen): points around the button's x, up from just above the
+# bottom edge.
 BUTTON_MARKS = {
     "left": polyline((4, -18), (-5, -9), (4, 0)),
     "right": polyline((-4, -18), (5, -9), (-4, 0)),
@@ -325,10 +306,6 @@ PLUS_PEN = pen((255, 205, 70))
 PLUS_DIM = pen((125, 98, 35))
 SHIELD_PEN = pen(PICKUPS["cache"]["rgb"])
 SHIELD_DIM = pen(dim(PICKUPS["cache"]["rgb"], 0.35))
-CRUST = pen((190, 110, 50))
-PEPPERONI = pen((210, 50, 50))
-CUP = pen((235, 225, 210))
-COFFEE = pen((110, 65, 35))
 SPLASH_BACKGROUND = pen((238, 245, 247))  # the studio site's horizon
 
 # Distant server towers on the horizon: (azimuth, width in degrees, height px).
@@ -635,6 +612,175 @@ def bake(kind, points, eyes, glow, core, size, facing):
     return img, left, top, w / size, h / size
 
 
+# --- Pickup models -------------------------------------------------------------
+
+# Low-poly coffee and pizza, from the designs in design/powerups: points in
+# the same units as the bots, and triangles of them, each of a material. They
+# are flat-shaded in three tones and baked into images, like distant bots,
+# at two sizes (PICKUP_ART_SIZES, px) that the blit scales between.
+MATERIALS = {
+    "cup": (235, 225, 210), "sleeve": (200, 140, 90), "coffee": (110, 65, 35), "steam": (220, 230, 240),
+    "crust": (190, 110, 50), "cheese": (255, 200, 80), "pepperoni": (210, 50, 50),
+}
+LIGHT = (-0.4, 0.75, -0.5)  # toward the light, unnormalised
+PICKUP_ART_SIZES = (11.0, 18.0)
+
+
+class Faces:
+    """A low-poly model: points, and triangles of them, each with a material."""
+
+    def __init__(self):
+        self.points = []
+        self.faces = []
+
+    def point(self, x, y, z):
+        self.points.append((x, y, z))
+        return len(self.points) - 1
+
+    def ring(self, cx, y, cz, r, n):
+        return [self.point(cx + r * math.cos(2 * math.pi * i / n), y, cz + r * math.sin(2 * math.pi * i / n))
+                for i in range(n)]
+
+    def quad(self, a, b, c, d, material):
+        self.faces += [(a, b, c, material), (a, c, d, material)]
+
+    def band(self, lower, upper, material):
+        """Quads joining two loops of points, all the way round."""
+        n = len(lower)
+        for i in range(n):
+            j = (i + 1) % n
+            self.quad(lower[i], lower[j], upper[j], upper[i], material)
+
+    def fan(self, centre, loop, material):
+        for i in range(len(loop)):
+            self.faces.append((centre, loop[i], loop[(i + 1) % len(loop)], material))
+
+
+def mug(frame):
+    """Coffee: a tapered eight-sided cup with a sleeve and a handle. Each frame
+    sways its three wisps of steam."""
+    m = Faces()
+    base = m.ring(0, -0.75, 0, 0.42, 8)
+    low = m.ring(0, -0.25, 0, 0.5, 8)
+    high = m.ring(0, 0.15, 0, 0.56, 8)
+    rim = m.ring(0, 0.55, 0, 0.62, 8)
+    m.fan(m.point(0, -0.75, 0), base[::-1], "cup")
+    m.band(base, low, "cup")
+    m.band(low, high, "sleeve")
+    m.band(high, rim, "cup")
+    m.fan(m.point(0, 0.48, 0), m.ring(0, 0.48, 0, 0.58, 8), "coffee")  # just below the rim
+    # The handle: a square loop of boxes on the right.
+    previous = None
+    for x, y in ((0.55, 0.3), (0.9, 0.3), (0.95, -0.15), (0.55, -0.3)):
+        box = [m.point(x, y + 0.07, -0.07), m.point(x, y + 0.07, 0.07), m.point(x, y - 0.07, 0.07),
+               m.point(x, y - 0.07, -0.07)]
+        if previous:
+            m.band(previous, box, "cup")
+        previous = box
+    # Steam: three thin ribbons, narrowing as they rise.
+    for k, x in enumerate((-0.25, 0.05, 0.3)):
+        wisp = [(x + 0.1 * math.sin(j * 1.8 + k + frame * 1.2), 0.65 + 0.22 * j, -0.1) for j in range(4)]
+        for j in range(3):
+            (x0, y0, z0), (x1, y1, z1) = wisp[j], wisp[j + 1]
+            w = 0.045 * (1 - j / 4)
+            m.quad(m.point(x0 - w, y0, z0), m.point(x0 + w, y0, z0), m.point(x1 + w, y1, z1), m.point(x1 - w, y1, z1),
+                   "steam")
+    return m
+
+
+def pizza_slice(frame):
+    """Pizza: a thick wedge with a raised crust, cheese, three pepperoni and a
+    drip of cheese. It has one frame."""
+    m = Faces()
+    t = 0.18  # thick
+    # The wedge's tip points at you; the crust runs along a slight curve.
+    arc = [(-0.75 + 1.5 * i / 4, 0.75 - 0.12 * abs(i - 2)) for i in range(5)]
+    tip_top, tip_bottom = m.point(0, t / 2, -0.9), m.point(0, -t / 2, -0.9)
+    top = [m.point(x, t / 2, z) for x, z in arc]
+    bottom = [m.point(x, -t / 2, z) for x, z in arc]
+    for i in range(4):
+        m.faces.append((tip_top, top[i + 1], top[i], "cheese"))
+        m.faces.append((tip_bottom, bottom[i], bottom[i + 1], "crust"))
+    m.quad(tip_top, top[0], bottom[0], tip_bottom, "crust")
+    m.quad(tip_top, tip_bottom, bottom[4], top[4], "crust")
+    # The crust's lip, raised along the arc.
+    front = [m.point(x, t / 2 + 0.15, z - 0.12) for x, z in arc]
+    back = [m.point(x, t / 2 + 0.15, z + 0.05) for x, z in arc]
+    back_low = [m.point(x, -t / 2, z + 0.05) for x, z in arc]
+    for i in range(4):
+        m.quad(top[i], top[i + 1], front[i + 1], front[i], "crust")
+        m.quad(front[i], front[i + 1], back[i + 1], back[i], "crust")
+        m.quad(back[i], back[i + 1], back_low[i + 1], back_low[i], "crust")
+    for cx, cz in ((-0.28, 0.35), (0.3, 0.38), (0.0, -0.15)):
+        loop = m.ring(cx, t / 2 + 0.03, cz, 0.15, 6)
+        m.fan(m.point(cx, t / 2 + 0.03, cz), loop[::-1], "pepperoni")
+    drip = [m.point(-0.36, t / 2 + 0.01, -0.1), m.point(-0.5, t / 2 + 0.01, 0.25), m.point(-0.5, -t / 2 - 0.25, 0.05)]
+    m.faces.append(tuple(drip) + ("cheese",))
+    return m
+
+
+# Each pickup's model, its frames, and how it's turned to you.
+PICKUP_MODELS = {
+    "coffee": (mug, 6, -0.5),
+    "pizza": (pizza_slice, 1, 0.5),
+}
+
+
+def shade(model, yaw, pitch=-0.45):
+    """The model's triangles as the game shows them: turned yaw, tipped pitch,
+    each flat-shaded in one of three tones by how it faces LIGHT, and ordered
+    far to near (pepperoni and coffee last, over what they sit on). Each is
+    ([x0, y0, x1, y1, x2, y2], pen) in units of its radius, y down."""
+    cy, sy, cp, sp = math.cos(yaw), math.sin(yaw), math.cos(pitch), math.sin(pitch)
+    turned = []
+    for x, y, z in model.points:
+        x, z = x * cy - z * sy, x * sy + z * cy
+        y, z = y * cp - z * sp, y * sp + z * cp
+        turned.append((x, y, z))
+    light = math.sqrt(sum(v * v for v in LIGHT))
+    faces = []
+    for a, b, c, material in model.faces:
+        pa, pb, pc = turned[a], turned[b], turned[c]
+        u = [pb[i] - pa[i] for i in range(3)]
+        v = [pc[i] - pa[i] for i in range(3)]
+        n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        size = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) or 1.0
+        facing = (n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]) / size / light
+        if n[2] > 0:  # both sides of every face are lit: the side toward you
+            facing = -facing
+        tone = 1.0 if facing > 0.45 else 0.72 if facing > 0.0 else 0.48
+        depth = (pa[2] + pb[2] + pc[2]) / 3 - (0.5 if material in ("pepperoni", "coffee") else 0)
+        flat = []
+        for x, y, z in (pa, pb, pc):
+            k = 4.0 / (4.0 + z)
+            flat += [x * k, -y * k]
+        faces.append((depth, flat, (material, tone)))
+    faces.sort(key=lambda f: -f[0])
+    pens = {}
+    for depth, flat, look in faces:
+        if look not in pens:
+            pens[look] = pen(dim(MATERIALS[look[0]], look[1]))
+    return [(flat, pens[look]) for depth, flat, look in faces]
+
+
+def bake_pickup(faces, size):
+    """Shaded triangles (see shade) drawn into an image size px in radius,
+    returned like bake's."""
+    xs = [flat[i] for flat, p in faces for i in (0, 2, 4)]
+    ys = [flat[i] for flat, p in faces for i in (1, 3, 5)]
+    left, top = min(xs), min(ys)
+    w = int((max(xs) - left) * size) + 2
+    h = int((max(ys) - top) * size) + 2
+    img = image(w, h)
+    img.antialias = image.OFF  # antialiased, neighbouring triangles show seams
+    for flat, p in faces:
+        x0, y0, x1, y1, x2, y2 = flat
+        img.pen = p
+        img.triangle(int((x0 - left) * size + 0.5), int((y0 - top) * size + 0.5), int((x1 - left) * size + 0.5),
+                     int((y1 - top) * size + 0.5), int((x2 - left) * size + 0.5), int((y2 - top) * size + 0.5))
+    return img, left, top, w / size, h / size
+
+
 class Aim:
     """Where you're aiming, in degrees, from the gyro (rotate) or from how
     far the badge is tipped (tilt), within the limit either way."""
@@ -832,6 +978,13 @@ class Game:
                 for frame in range(MODELS[kind][1]):
                     self.unbuilt.append((kind, frame, size))
         self.unbuilt.sort(key=lambda key: -key[2])
+        self.unbuilt = [(self.model, key) for key in self.unbuilt]
+        # Pickup art, by kind and frame, each at every one of the
+        # PICKUP_ART_SIZES, built first of all.
+        self.pickup_arts = {kind: [None] * frames for kind, (build, frames, yaw) in PICKUP_MODELS.items()}
+        for kind, (build, frames, yaw) in PICKUP_MODELS.items():
+            for frame in range(frames):
+                self.unbuilt.append((self.pickup_art, (kind, frame)))
         logo = image.load("assets/studio_logo.png")
         self.logo = logo  # the pieces are windows onto it
         self.logo_pieces = [
@@ -1002,7 +1155,13 @@ class Game:
         elif pickup.kind == "cache":
             self.shields = min(self.stats["shields"], self.shields + 1)
         elif pickup.kind == "coffee":
+            # Overdrive: every weapon full and firing twice as fast, using no
+            # ammo until it ends.
             self.overdrive = OVERDRIVE_SECONDS
+            for i in range(len(WEAPONS)):
+                if self.owned[i]:
+                    self.ammo[i] = float(self.magazine[i])
+                    self.reloading[i] = 0.0
             label = "COFFEE: OVERDRIVE"
         else:
             # rm -rf: every bot on the field, bar the rogue agent, which had backups.
@@ -1045,7 +1204,7 @@ class Game:
                 self.ammo[i] = min(float(self.magazine[i]), self.ammo[i] + refill * dt)
 
         # The weapon in hand fires whenever it has a round; emptying the
-        # magazine starts a reload.
+        # magazine starts a reload. Overdrive uses no rounds.
         i = self.weapon
         w = WEAPONS[i]
         rate = w["rate"] * self.stats["fire_rate"] * (2 if self.overdrive > 0 else 1)
@@ -1055,9 +1214,10 @@ class Game:
             n = self.pellets[i]
             for p in range(n):
                 self.shots.append(Shot(w, i, self.aim.yaw + w["gap"] * (p - (n - 1) / 2), self.damage[i]))
-            self.ammo[i] -= 1
-            if self.ammo[i] < 1:
-                self.reloading[i] = self.stats["reload"]
+            if self.overdrive <= 0:
+                self.ammo[i] -= 1
+                if self.ammo[i] < 1:
+                    self.reloading[i] = self.stats["reload"]
         self.cooldown = max(self.cooldown, 0.0)
 
         for shot in self.shots:
@@ -1213,7 +1373,19 @@ class Game:
         are left."""
         start = time.ticks_ms()
         while self.unbuilt and (budget_ms is None or time.ticks_diff(time.ticks_ms(), start) < budget_ms):
-            self.model(*self.unbuilt.pop())
+            build, key = self.unbuilt.pop()
+            build(*key)
+
+    def pickup_art(self, kind, frame):
+        """A frame of a pickup as images at each of PICKUP_ART_SIZES, built
+        now if they weren't already. Shading is most of the work, so it's
+        done once for them all."""
+        art = self.pickup_arts[kind][frame]
+        if art is None:
+            build, frames, yaw = PICKUP_MODELS[kind]
+            faces = shade(build(frame), yaw)
+            art = self.pickup_arts[kind][frame] = [bake_pickup(faces, size) for size in PICKUP_ART_SIZES]
+        return art
 
     def bot_frame(self, bot, t):
         """Which of its model's frames a bot shows: bugs scuttle, node_modules
@@ -1299,27 +1471,11 @@ class Game:
             if x + r < 0 or x - r > WIDTH:
                 self.edge_marker(x, y, PICKUP_PENS[pickup.kind])
                 continue
-            if pickup.kind == "pizza":
-                screen.pen = PICKUP_PENS["pizza"]
-                screen.triangle(int(x - r), int(y - r * 0.6), int(x + r), int(y - r * 0.6), int(x), int(y + r))
-                screen.pen = CRUST
-                screen.rectangle(int(x - r), int(y - r * 0.85), int(2 * r), max(2, int(r * 0.3)))
-                screen.pen = PEPPERONI
-                for px, py in ((-0.35, -0.3), (0.3, -0.25), (0.0, 0.25)):
-                    screen.circle(int(x + px * r), int(y + py * r), max(1, int(r * 0.17)))
-            elif pickup.kind == "coffee":
-                screen.pen = CUP
-                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), int(r * 1.1))
-                screen.circle(int(x + r * 0.75), int(y + r * 0.1), max(2, int(r * 0.3)))
-                screen.pen = FLOOR
-                screen.circle(int(x + r * 0.75), int(y + r * 0.1), max(1, int(r * 0.15)))
-                screen.pen = COFFEE
-                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), max(2, int(r * 0.25)))
-                screen.pen = CUP
-                for k in range(3):  # steam
-                    sway = int(r * 0.15 * math.sin(t * 6 + k))
-                    screen.rectangle(int(x - r * 0.25) + sway, int(y - r * 0.65 - k * r * 0.2), 2, 2)
-                    screen.rectangle(int(x + r * 0.2) - sway, int(y - r * 0.6 - k * r * 0.2), 2, 2)
+            if pickup.kind in PICKUP_MODELS:
+                frame = int(t * 8 + pickup.phase) % PICKUP_MODELS[pickup.kind][1]
+                art = self.pickup_arts[pickup.kind][frame] or self.pickup_art(pickup.kind, frame)
+                img, left, top, w, h = art[0 if r < 14 else 1]
+                screen.blit(img, rect(int(x + left * r), int(y + top * r), int(w * r), int(h * r)))
             elif pickup.kind == "cache":
                 screen.pen = PICKUP_PENS["cache"]
                 screen.rectangle(int(x - r * 0.7), int(y - r * 0.7), int(r * 1.4), int(r * 0.8))
@@ -1501,16 +1657,6 @@ class Game:
         pulse = 0.5 + 0.5 * math.sin(time.ticks_ms() / 1000 * 4.0)
         return ((5, pen(WEAPONS[0]["rgb"], int(50 + 70 * pulse))), (2, WEAPON_PENS[0]))
 
-    def draw_pointer(self, x):
-        """A glowing arrow bobbing down at the button below the screen at x."""
-        tip = HEIGHT - 4 + int(3 * math.sin(time.ticks_ms() / 1000 * 6.0))
-        for stroke, p in self.glow_pens():
-            screen.pen = p
-            screen.rectangle(x - stroke // 2, tip - 24, stroke, 20)
-            for k in range(8):
-                screen.rectangle(x - k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
-                screen.rectangle(x + k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
-
     def draw_mark(self, x, mark):
         """A glowing mark from BUTTON_MARKS, bobbing right over the button
         below the screen at x."""
@@ -1519,17 +1665,6 @@ class Game:
             screen.pen = p
             for px, py in BUTTON_MARKS[mark]:
                 screen.rectangle(int(x + px) - stroke // 2, int(base + py) - stroke // 2, stroke, stroke)
-
-    def draw_enter_hint(self):
-        """A glowing return arrow, like the one printed on the badge, in the
-        bottom right corner, and an arrow down at the enter button itself."""
-        gw, gh = ENTER_GLYPH_SIZE
-        gx, gy = WIDTH - gw - 10, HEIGHT - gh - 12
-        for stroke, p in self.glow_pens():
-            screen.pen = p
-            for x, y in ENTER_GLYPH:
-                screen.rectangle(int(gx + x - stroke / 2), int(gy + y - stroke / 2), stroke, stroke)
-        self.draw_pointer(ENTER_X)
 
     def draw_game(self):
         self.draw_world()
@@ -1560,7 +1695,7 @@ class Game:
             y += 26
         self.draw_side_tab(UP_Y, "settings", settings_lit)
         self.draw_side_tab(DOWN_Y, "next", True)
-        self.draw_enter_hint()
+        self.draw_mark(ENTER_X, "check")
 
     def settings_rows(self):
         turning = "Tilt" if self.settings["turning"] == "tilt" else "Rotate"
@@ -1685,7 +1820,7 @@ class Game:
             screen.pen = MUTED
             screen.text("Repo Defender v" + VERSION, 6, HEIGHT - 20)
             self.draw_side_tab(UP_Y, "settings", True)
-            self.draw_enter_hint()
+            self.draw_mark(ENTER_X, "check")
             if pressed(SELECT):
                 self.start()
             return False
@@ -1700,7 +1835,7 @@ class Game:
                 "Press enter to try again",
             ], DANGER)
             self.draw_side_tab(UP_Y, "settings")
-            self.draw_enter_hint()
+            self.draw_mark(ENTER_X, "check")
             if pressed(SELECT):
                 self.start()
             return False

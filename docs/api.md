@@ -119,8 +119,9 @@ The menu's icons and tile animations are drawn this way. See
 
 Players won't know which physical button is "Select". Show them: draw toward
 the button's spot beside the screen ([hardware.md](hardware.md#buttons)).
-Repo Defender's title screen does it with a glowing copy of the `↩` printed
-beside enter, and a bobbing arrow down at it:
+An arrow bobbing down at it works (below). Repo Defender puts a glowing,
+bobbing mark right over each button it uses instead: a checkmark over enter,
+and `<` and `>` over Left and Right.
 
 ```python
 ENTER_X = 255   # BUTTON_SELECT: below the bottom edge, at this x
