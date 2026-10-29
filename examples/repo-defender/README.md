@@ -1,9 +1,29 @@
 # Example: Repo Defender
 
-![Menu icon](preview/icon_tiles_x3.png)
-
 A tongue-in-cheek first-person shooter: evil bots are coming for your main
 branch. It plays seated.
+
+## Install and start playing
+
+Follow the repo's [installation guide](../../README.md#install-on-your-badge)
+for prerequisites and port discovery. From the repo root, install just the
+game with:
+
+```bash
+python3 tools/deploy.py badge/apps/repo_defender --dry-run
+python3 tools/deploy.py badge/apps/repo_defender
+```
+
+Open **Repo Defender** in the badge menu, press **Enter (↩)** to start, and
+hold the badge still for the initial aiming calibration. Turn to aim; your
+weapon fires automatically. **Down** reloads, **Left / Right** switches
+unlocked weapons, **Enter** pauses, **Up** opens settings, and **Back** exits.
+Left, Right, and Enter are on the bottom row; Up and Down are on the right
+edge. [Buttons and screens](#buttons-and-screens) covers the menus in detail.
+
+The game and its logo are ready to install. For its custom menu icon, use the
+full install in the installation guide, which explains the shared menu
+files it replaces.
 
 ![Bots in play, and each one up close](preview/bots.png)
 
@@ -94,7 +114,7 @@ every bot that arrives afterwards tougher and faster.
 
 The side buttons always mean the same thing, and overlays beside them show it:
 
-- **Up is settings, on every screen.** It freezes whatever's going on, and Up
+- **Up opens settings after the splash.** It freezes whatever's going on, and Up
   again closes it. In settings, Down moves between rows and enter takes one:
   - **Turning:** rotate (the default: turn your body, using the gyro) or tilt
     (tip the badge left or right to turn that way, and hold it level to stop).
@@ -122,7 +142,13 @@ It's drawn entirely with rectangles, triangles, circles, lines and text, with
 no image assets except the logo. Far-off bots are drawn as a head and a band of
 red eyes, and only close ones get detail.
 
-## How aiming works
+## Customize the game
+
+Edit [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py)
+and redeploy the same app folder. To try changes without installing them,
+follow the [temporary app workflow](../../docs/workflow.md#trying-an-app-without-installing-it).
+
+### How aiming works
 
 - **Rotate** measures turning around "down". The accelerometer gives the
   direction of gravity, and the yaw rate is the gyro's reading along it, so it
@@ -138,7 +164,9 @@ red eyes, and only close ones get detail.
   and hit tests all go through the same `View`, so `YAW_SIGN` is the only
   direction choice.
 
-Tuning knobs, at the top of the app:
+### Tuning knobs
+
+These constants and tables are near the top of the app:
 
 - **Aim:** `YAW_LIMIT`, `YAW_SIGN`, `HFOV`, `TILT_*`.
 - **Pace:** `WAVE_SECONDS`, and the spawn mix and curve in `Game.spawn` and
@@ -172,10 +200,18 @@ play has far fewer on screen. How to run it is at the top of the file.
 
 ## The menu icon
 
-A shield guarding a little commit graph. To rebuild it:
+A shield guarding a little commit graph. The compiled icon table is already
+included. To rebuild it from the repo root, the preview renderer needs
+Pillow and the icon tool compiles through `uvx mpy-cross`:
+
+![Menu icon](preview/icon_tiles_x3.png)
 
 ```bash
-python3 examples/repo-defender/make_icon.py examples/repo-defender/icon.json preview.png
+uv run --with pillow examples/repo-defender/make_icon.py examples/repo-defender/icon.json preview.png
 python3 tools/menu_icon.py repo_defender examples/repo-defender/icon.json
+python3 tools/deploy.py badge/apps/menu --dry-run
 python3 tools/deploy.py badge/apps/menu
 ```
+
+This deploys shared menu files; merge any other custom icon entries before
+installing them. See the [menu guide](../../docs/menu.md) for the icon format.

@@ -1,15 +1,51 @@
 # Example: Internet Creature Studios
 
-![The badge scene at four moments](preview/hills_layers.png)
-
 The studio's logo over its website's rolling hills. The hills are drawn live as
 four parallax layers, and the badge's tilt steers them. Held level, they drift
 left at the site's pace. Tip the badge and they race away that way, up to 24
 times as fast. It runs at about 30 fps.
 
+![The badge scene at four moments](preview/hills_layers.png)
+
+## Install and use
+
+Follow the repo's [installation guide](../../README.md#install-on-your-badge)
+for prerequisites and port discovery. From the repo root, install just this
+app with:
+
+```bash
+python3 tools/deploy.py badge/apps/internet_creature --dry-run
+python3 tools/deploy.py badge/apps/internet_creature
+```
+
+Open **Internet Creature** in the badge menu. Tilt to steer; **hold Left +
+Right together** to exit. Those buttons are on the bottom row. Back, Menu,
+or Home also exits when available on the firmware.
+
+All scene assets are included; no rendering step is needed to run the app.
+For the custom menu icon and its animation, use the full install in the
+installation guide, which also explains the shared menu files it replaces.
+
+## Customize the motion
+
 The app is in [`badge/apps/internet_creature/`](../../badge/apps/internet_creature).
 Its feel is set by constants at the top of `__init__.py`: `RACE`,
 `TILT_CURVE`, `RESPONSE_MS` and `TILT_SIGN`.
+
+After editing, deploy the same app folder again. To try changes without an
+installed copy, use the [temporary app workflow](../../docs/workflow.md#trying-an-app-without-installing-it).
+
+## Preview the supplied assets on your Mac
+
+This needs Pillow; `uv` provides it for the command. From the repo root:
+
+```bash
+uv run --with pillow examples/internet-creature-studios/preview_scene.py \
+  badge/apps/internet_creature/assets out.png 0 12 24
+```
+
+`out.png` shows the scene at three moments of the level drift. This works
+with the included assets and doesn't need the private terrain preset.
 
 ## How the hills are made
 
@@ -28,8 +64,11 @@ the badge can't do. [`render_layers.py`](render_layers.py) bakes the site's
 - **Tiles:** each strip is cut into tiles cropped to its visible pixels, planned
   from the badge's measured blit costs.
 
-Rendering needs the hills preset from the studio's private site repo, so only
-the studio can re-render:
+**Regenerating the terrain requires a private input.** The hills preset lives
+in the studio's private site repo and isn't included here. The command below
+is for someone who already has that repo at the shown path; a public clone
+of this repo is enough to install or preview the app, but can't reproduce
+this rendering step on its own:
 
 ```bash
 uv run --with numpy --with pillow examples/internet-creature-studios/render_layers.py \
@@ -38,11 +77,7 @@ uv run --with numpy --with pillow examples/internet-creature-studios/render_laye
 ```
 
 The look is tuned in `LAYERS` and `LIGHT_OVERRIDES` at the top of the script.
-To check a render without the badge:
-
-```bash
-python3 examples/internet-creature-studios/preview_scene.py badge/apps/internet_creature/assets out.png 0 12 24
-```
+Use the preview command above to check a render without the badge.
 
 `source/` holds `logo.png`, `layout.json` (the logo's position) and
 `sky.png`, a still of the site whose sky sits above the hills.
@@ -63,11 +98,22 @@ The menu draws tile icons from vector contours, not images (see
 
 ## Benchmarking with a fake tilt
 
+This section runs code on the connected badge. Use the serial port you found
+in the installation guide in place of `YOUR_BADGE_PORT`, and reset to the
+menu when finished.
+
 [`bench_tilt.py`](bench_tilt.py) runs the app on the badge with the motion
 sensor replaced by a fixed reading, and prints the app's
 `ICS_BADGE_BENCHMARK` line:
 
 ```bash
-uvx mpremote connect /dev/cu.usbmodem1101 exec "AX = 16384
+uvx mpremote connect YOUR_BADGE_PORT exec "AX = 16384
 $(cat examples/internet-creature-studios/bench_tilt.py)"
+```
+
+After the benchmark line appears, press **Ctrl-C** to stop the running
+command, then reset:
+
+```bash
+uvx mpremote connect YOUR_BADGE_PORT reset
 ```
