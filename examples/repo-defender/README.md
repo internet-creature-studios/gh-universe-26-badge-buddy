@@ -3,113 +3,127 @@
 ![Menu icon](preview/icon_tiles_x3.png)
 
 A tongue-in-cheek first-person shooter: rogue AI bots are coming for your main
-branch.
+branch. It plays seated.
 
-- **Aim by turning.** Turn your body, or just the badge, about 30 degrees either
-  way, so it plays seated. The gyro does the aiming.
-- **Firing is automatic.** Left and Right switch between three weapons, each
-  with its own magazine:
-  - **LINT**: rapid fire, 30 shots.
-  - **REVIEW**: heavy shots, 4.
-  - **REVERT**: a short-range spread of 5 pellets, 3 blasts.
-- **Reloading.** An empty magazine reloads by itself. All three reload at
-  once, so switching away from an empty weapon keeps you firing.
-- **Match the colour.** Each bot is tinted the colour of the weapon it's weak
-  to. The matching weapon does **2× damage**, and a kill with it scores **2×
-  points**, with a white flash and a "MATCH" score:
-  - spam bots (1 HP): LINT
-  - hallucinators (6 HP, they weave): REVIEW
-  - force-pushers (8 HP, they charge): REVERT
-  - mega-agents (30 HP, every third release) aren't weak to anything.
-- **Pickups.** A destroyed bot sometimes leaves one hovering. Shoot it within
-  4.5 s to collect it:
-  - **Hotfix** (pink): +25 health.
-  - **Cache Hit** (blue): restores a shield.
-  - **Overclock** (yellow): double fire rate for 5 s.
+## How it plays
+
+- **Aim** by turning your body (or just the badge) about 30 degrees either way.
+  Or, in options, by tilting the badge.
+- **Hold Down** (right edge) to fire, and **press Up** to reload early. Overlays
+  beside those two buttons show what they do, and the reload overlay fills as
+  the reload goes. **Left and Right** switch weapons:
+  - **LINT**: green, rapid fire, a 30-round magazine.
+  - **REVIEW**: blue, heavy shots, 4 rounds.
+  - **REVERT**: orange, a spread of 5 pellets, 3 blasts.
+- **Reloading.** An empty magazine reloads by itself. Weapons you aren't
+  holding slowly refill, a full magazine in about 6 s.
+- **Match the colour.** The weapon matching a bot's colour does **2× damage**,
+  and a kill with it scores **2× points**, with a white flash and a "MATCH"
+  score. Each colour has its own identity:
+
+  | Bot | Colour | Approach | Health | Matched kill |
+  | --- | --- | --- | --- | --- |
+  | Force-pusher | green | fastest, straight at you | 4 | 2 LINT hits |
+  | node_modules | blue | slowest, straight, tanky | 18 | 3 REVIEW shots |
+  | Hallucinator | orange | sways side to side, medium speed | 2 | 1 REVERT pellet |
+  | Mega-agent | pink | slow boss, every third release | 30 | weak to nothing |
+
+- **Pickups** bob up and down where a destroyed bot was. Shoot one within 4.5 s
+  to collect it:
+  - **Pizza**: +25 health.
+  - **Coffee**: overdrive, double fire rate for 5 s.
+  - **Cache Hit**: a shield back. It only drops once you have shields.
+  - **rm -rf**: deletes every bot on the field, except the Mega-agent, which
+    had backups.
 - **Upgrades.** Each wave is a "release" (v0.1.0 and up). When one ships, the
   game freezes on three upgrade cards. Left and Right choose, and enter takes
-  it. Each card shows the stat now and after.
-- **Defend main.** A bot that reaches you hits a shield if one's charged.
-  Otherwise it merges into main and costs you health.
+  it.
+- **Shields** absorb a bot completely. Without one, a bot that reaches you
+  merges into main and costs you health.
 
-## Stats
+## Upgrades
 
-Every run starts from `BASE_STATS`, and each upgrade changes one stat:
+Every run starts from `BASE_STATS`. Each upgrade changes one stat, and its card
+shows the stat now and after:
 
-| Stat | Starts at | Upgrade | Per pick |
-| --- | --- | --- | --- |
-| Fire rate | 100% of each weapon's | Caffeinated CI | +15% |
-| Flat damage | +0 per pellet | Strong Typing | +1 |
-| Increased damage | +0% | 10x Engineer | +25% |
-| Pickup chance | 10% per kill | Bug Bounty | +8% |
-| Reload time | 1.2 s | Hot Reload | 15% faster |
-| Max health | 100 | Branch Protection | +20, and heals 20 |
-| Shields | 0 (up to 3) | Two-Factor Auth | +1, charged |
+| Upgrade | Flavour | Effect |
+| --- | --- | --- |
+| Larger Runners | Your CI finally got the good machines. | +15% fire rate |
+| CODEOWNERS | Nothing gets through without your say-so. | +1 damage on every hit |
+| Copilot | Fight AI with AI. Seems only fair. | +25% damage |
+| Bug Bounty | Bots drop loot now. Finders keepers! | +8% pickup chance (from 10%) |
+| Automated PR Review | Reloads approve themselves. LGTM! | 15% faster reloads (from 1.2 s) |
+| Branch Protection | main has been hitting the gym. | +20 max health (from 100), and heals 20 |
+| Two-Factor Auth | Bots never have their phone on them. | +1 recharging shield, up to 3 |
 
 Damage per pellet is `(weapon damage + flat) × (1 + increased) × 2 if matched`.
-A shield absorbs one bot completely. One comes back 8 s after a bot last
-reached you, then one every 8 s after that.
-- **The splash.** It opens on the studio's logo: "internet", "creature" and
-  "studios" rise in one at a time, then the pink `:3` hops in. Any button
-  skips it.
-- **The title points at enter.** A glowing copy of the `↩` printed beside the
-  enter button sits in the bottom right, and an arrow bobs down at the button
-  itself (see [docs/button_positions.json](../../docs/button_positions.json)).
-- **Buttons.** Select (enter) starts a game.
-  - **Pausing:** in a game, Select pauses, and Up and Down pick Resume, Restart
-    or Quit. Select confirms. Resume is the default, so Select twice is pause
-    and unpause.
-  - **While playing:** Up re-centres your aim. Back exits at any time.
-  - **Best score:** kept in `/state/repo_defender.json`.
+A shield comes back 8 s after a bot last reached you, then one every 8 s.
+
+## Screens and options
+
+- **The splash** shows the studio's logo: "internet", "creature" and "studios"
+  rise in one at a time, then the pink `:3` hops in.
+- **The title** points at the buttons. A glowing copy of the printed `↩` and an
+  arrow mark enter (start), and a gear marks Up (options). The positions come
+  from [docs/button_positions.json](../../docs/button_positions.json).
+- **Options**, from the title or the pause menu, are saved on the badge:
+  - **Firing:** hold Down (the default) or automatic.
+  - **Turning:** rotate (the default: turn your body, using the gyro) or tilt
+    (tip the badge left or right to turn that way, and hold it level to stop).
+    Both cover the same ±30°.
+- **Pause:** enter pauses, with Resume, Re-centre aim, Options, Restart and
+  Quit. Up and Down choose, and enter confirms. Resume is the default, so enter
+  twice is pause and unpause. Back exits at any time.
+- **Saved state:** the best score and options are kept in
+  `/state/repo_defender.json`.
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
-Everything is drawn with rectangles, lines and text, which cost a fraction of
-blitting images (see [docs/performance.md](../../docs/performance.md)), so it
-runs at 30+ fps with no assets.
+It's drawn entirely with rectangles, triangles, circles, lines and text, with
+no image assets except the logo.
 
 ## How aiming works
 
-- **Turning is measured around "down".** The accelerometer gives the direction
-  of gravity, and the yaw rate is the gyro's reading along it. So it works
-  however the badge is tilted in your hands.
-- **Gyro units:** two full turns in a playing pose measured 107 and 110 raw
-  units per degree per second (`GYRO_LSB_PER_DPS`).
-- **Re-learning zero:** the gyro's zero point wanders, and in a hand it's never
-  quite still. The game calibrates from the steadiest part of a one-second hold
-  at Select, then keeps re-learning zero whenever the badge holds still for
-  about 0.4 seconds.
-- **The ±30° limit:** turning past it drags the centre along with you, which
-  also soaks up whatever drift is left. Up re-centres.
-- **One projection for everything.** The grid, skyline, bots, shots and hit
-  tests all go through the same `View`. An early version drew the world
-  rotated one way and fired shots the other, and the two mistakes hid each
-  other until the bullets went the wrong way. With one `View`, the only
-  direction choice left is `YAW_SIGN`. Turning left aims left, and the scenery
-  slides right.
+- **Rotate** measures turning around "down". The accelerometer gives the
+  direction of gravity, and the yaw rate is the gyro's reading along it, so it
+  works however the badge is tilted in your hands. Two full turns measured 107
+  and 110 raw units per degree per second (`GYRO_LSB_PER_DPS`). The game
+  calibrates from the steadiest part of a one-second hold at the start, and
+  keeps re-learning the gyro's zero point whenever the badge holds still.
+  Turning past ±30° drags the centre along with you.
+- **Tilt** reads the accelerometer's sideways component against how the badge
+  was held at the start. Past a small dead zone, turning speeds up to 70°/s.
+- **One projection for everything.** The grid, skyline, bots, pickups, shots
+  and hit tests all go through the same `View`, so `YAW_SIGN` is the only
+  direction choice. An early version drew the world rotated one way and fired
+  shots the other.
 
 Tuning knobs, at the top of the app:
 
-- **Aim:** `YAW_LIMIT`, `YAW_SIGN`, `HFOV`.
-- **Pace:** `WAVE_SECONDS`, and the spawn curve in `Game.update`.
-- **Bots and weapons:** the `WEAPONS` and `BOTS` tables, and `MATCH`.
+- **Aim:** `YAW_LIMIT`, `YAW_SIGN`, `HFOV`, `TILT_*`.
+- **Pace:** `WAVE_SECONDS`, and the spawn mix and curve in `Game.spawn` and
+  `Game.update`.
+- **Bots and weapons:** the `BOTS` and `WEAPONS` tables, `MATCH` and
+  `HOLSTER_REFILL`.
 - **Progression:** `BASE_STATS`, `UPGRADES`, `PICKUPS`, and the shield and
   pickup timings.
 
 ## Testing the rules on the badge
 
 [`selftest.py`](selftest.py) runs the game's own code on the badge with its
-run loop swapped for checks:
+run loop swapped for 18 checks. They cover:
 
-- reload timing
-- matched and unmatched damage, and double points
-- pickups
+- firing only on the trigger, reload timing, early reloads and holster refills
+- each bot's matched kill and the double points
+- every pickup, including rm -rf sparing the boss
 - shields absorbing a bot and recharging
-- the upgrade offers, including no shield upgrade past 3 shields
-- the upgrade and pause screens drawing
+- the upgrade offers
+- which way tilt turns
+- every screen drawing
 
-Then it measures a busy scene's frame rate. Version 0.2.0 passes all 11
-checks, and the busy scene runs at 29 fps. How to run it is at the top of the
-file.
+Then it measures the frame rate of a busy scene. All 18 checks pass. The busy
+scene, with 12 bots, 4 pickups and REVERT firing automatically, runs at about
+25 fps; normal play has far fewer bots on screen. How to run it is at the top
+of the file.
 
 ## The menu icon
 

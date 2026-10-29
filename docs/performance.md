@@ -27,6 +27,24 @@ Measured on the badge in HIRES mode (320x240), with `time.ticks_us()`.
 lines and text for anything that changes every frame, and keep images for
 detail that can't be drawn.
 
+| Operation | Cost |
+| --- | --- |
+| `screen.triangle(x0, y0, x1, y1, x2, y2)`, about 30 px | ~0.1 ms |
+| `screen.circle(x, y, r)`, r = 12 | ~0.03 ms |
+
+Both are filled, and both also take `vec2`s.
+
+**For vector-drawn games, Python is the cost, not pixels.** In Repo Defender's
+busiest scene (12 bots, 4 pickups), a frame takes about 36 ms of Python, spread
+over hundreds of small draw calls and the maths that projects each thing.
+
+- **Floats allocate.** Every floating-point result is a heap object, so that
+  frame allocates about 11 KB, and each garbage collection costs about 5.6 ms.
+- **Spend calls on what's close.** Draw far-off things with fewer calls, and
+  cache anything that doesn't change per frame, such as text widths.
+- **Expect the heaviest moments to dip.** Repo Defender runs at about 30 fps
+  normally and about 25 in its busiest moments.
+
 ## The frame budget
 
 With `VSYNC`, a frame takes 1, 2, 3 or 4 refreshes:

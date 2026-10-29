@@ -1,19 +1,20 @@
 """Repo Defender: rogue AI bots are coming for your main branch.
 
-Turn your body, or just the badge, to aim. It's about 30 degrees either way,
-so it plays seated. Your weapon fires by itself and reloads when its
-magazine runs dry; Left and Right switch weapons. Each bot is tinted the
-colour of the weapon it's weak to, and the matching weapon does double
-damage and scores double points. Destroyed bots sometimes leave a pickup:
-shoot it to collect it. After each wave (a "release") you pick one of three
-upgrades to your stats. A bot that reaches you takes a shield if one is
-charged, or merges itself into main and costs you health, and at zero the
-bots own the repo.
+Turn your body (or tilt the badge, in options) to aim, about 30 degrees
+either way, so it plays seated. Hold Down to fire and press Up to reload
+early; weapons you aren't holding slowly refill. Left and Right switch
+weapons. Each bot is tinted the colour of the weapon it's weak to, and the
+matching weapon does double damage and scores double points. Destroyed bots
+sometimes leave a bobbing pickup: shoot it to collect it. After each wave
+(a "release") you pick one of three upgrades to your stats. A bot that
+reaches you takes a shield if one is charged, or merges itself into main
+and costs you health, and at zero the bots own the repo.
 
-It opens on the studio's logo. Enter (Select) starts a game, and in a game
-pauses it: Up and Down pick Resume, Restart or Quit, and enter confirms, so
-enter twice is pause and unpause. Up re-centres your aim while playing; Back
-or Home exits. The best score is kept in /state/repo_defender.json.
+It opens on the studio's logo. On the title, enter starts and Up opens the
+options: firing (hold Down, or automatic) and turning (rotate, or tilt). In
+a game, enter pauses: Up and Down pick, enter confirms, so enter twice is
+pause and unpause. Back or Home exits. The best score and the options are
+kept in /state/repo_defender.json.
 """
 
 import json
@@ -43,6 +44,14 @@ YAW_LIMIT = 30.0
 # on every axis counts as still, and its average nudges the zero point.
 STILL_SPREAD = 0.5
 STILL_FRAMES = 12
+# Tilt turning: tip the badge left or right to turn that way, hold it as it
+# was at the start to stop. Past the dead zone (how far it's tipped, as the
+# sine of the angle), turning speeds up to TILT_DPS at a tip of TILT_FULL.
+# Positive tips the right edge down, and turns right.
+TILT_DPS = 70.0
+TILT_DEADZONE = 0.08
+TILT_FULL = 0.5
+TILT_SIGN = 1
 
 # --- View ------------------------------------------------------------------
 
@@ -57,8 +66,8 @@ SPAWN_ARC = 28.0  # bots appear within this many degrees of straight ahead
 
 # --- Weapons and bots ------------------------------------------------------
 
-# rate: shots a second. damage: per pellet. magazine: shots before it
-# reloads (a REVERT blast is one shot). radius: how wide a shot hits.
+# rate: shots a second while firing. damage: per pellet. magazine: shots
+# before it reloads (a REVERT blast is one shot). radius: how wide a shot hits.
 WEAPONS = [
     dict(name="LINT", rgb=(90, 255, 140), rate=7.0, damage=1, pellets=1, spread=0.0, speed=40.0, reach=34.0,
          radius=0.25, magazine=30),
@@ -67,18 +76,23 @@ WEAPONS = [
     dict(name="REVERT", rgb=(255, 160, 60), rate=1.3, damage=1, pellets=5, spread=7.0, speed=36.0, reach=14.0,
          radius=0.3, magazine=3),
 ]
+# A weapon you aren't holding refills itself: a full magazine in this many
+# reload times.
+HOLSTER_REFILL = 5.0
 # A bot hit by the weapon of its own colour takes this many times the
 # damage, and if that hit destroys it, it scores this many times the points.
 MATCH = 2
 
-# weak: the weapon whose colour it wears. hit: health lost on reaching you.
+# Each colour has its own way of coming at you. weak: the weapon whose
+# colour it wears. hit: health lost on reaching you. weave: degrees it
+# sways either side.
 BOTS = {
-    "spam": dict(name="Spam bot", hp=1, speed=2.8, weave=0.0, size=0.33, weak=0, points=10, hit=8,
-                 quip="merged 1,000 PRs titled 'fix'"),
-    "hallucinator": dict(name="Hallucinator", hp=6, speed=2.0, weave=9.0, size=0.38, weak=1, points=25, hit=12,
-                         quip="added a package that doesn't exist"),
-    "forcepush": dict(name="Force-pusher", hp=8, speed=4.4, weave=0.0, size=0.36, weak=2, points=30, hit=15,
+    "forcepush": dict(name="Force-pusher", hp=4, speed=4.6, weave=0.0, size=0.34, weak=0, points=20, hit=10,
                       quip="force-pushed over your history"),
+    "node_modules": dict(name="node_modules", hp=18, speed=1.5, weave=0.0, size=0.5, weak=1, points=60, hit=20,
+                         quip="installed 40,000 packages into main"),
+    "hallucinator": dict(name="Hallucinator", hp=2, speed=2.6, weave=11.0, size=0.34, weak=2, points=15, hit=8,
+                         quip="added a package that doesn't exist"),
     "mega": dict(name="Mega-agent", hp=30, speed=1.3, weave=4.0, size=0.8, weak=None, points=150, hit=35,
                  quip="rewrote the whole repo overnight"),
 }
@@ -103,26 +117,34 @@ SHIELD_RECHARGE = 8.0
 # Offered three at a time after each wave. step is what one pick adds, or
 # for reload, what it multiplies by.
 UPGRADES = [
-    dict(stat="fire_rate", name="Caffeinated CI", effect="+15% fire rate", step=0.15),
-    dict(stat="flat_damage", name="Strong Typing", effect="+1 damage on every hit", step=1),
-    dict(stat="damage_bonus", name="10x Engineer", effect="+25% damage", step=0.25),
-    dict(stat="pickup_chance", name="Bug Bounty", effect="+8% pickup chance", step=0.08),
-    dict(stat="reload", name="Hot Reload", effect="15% faster reloads", step=0.85),
-    dict(stat="max_health", name="Branch Protection", effect="+20 max health, and heals 20", step=20),
-    dict(stat="shields", name="Two-Factor Auth", effect="+1 recharging shield", step=1),
+    dict(stat="fire_rate", name="Larger Runners", flavor="Your CI finally got the good machines.",
+         effect="+15% fire rate", step=0.15),
+    dict(stat="flat_damage", name="CODEOWNERS", flavor="Nothing gets through without your say-so.",
+         effect="+1 damage on every hit", step=1),
+    dict(stat="damage_bonus", name="Copilot", flavor="Fight AI with AI. Seems only fair.",
+         effect="+25% damage", step=0.25),
+    dict(stat="pickup_chance", name="Bug Bounty", flavor="Bots drop loot now. Finders keepers!",
+         effect="+8% pickup chance", step=0.08),
+    dict(stat="reload", name="Automated PR Review", flavor="Reloads approve themselves. LGTM!",
+         effect="15% faster reloads", step=0.85),
+    dict(stat="max_health", name="Branch Protection", flavor="main has been hitting the gym.",
+         effect="+20 max health, and heals 20", step=20),
+    dict(stat="shields", name="Two-Factor Auth", flavor="Bots never have their phone on them.",
+         effect="+1 recharging shield", step=1),
 ]
 
-# Destroyed bots sometimes leave one hovering where they were. Shoot it
-# before it fades to collect it.
+# Destroyed bots sometimes leave one bobbing where they were. Shoot it before
+# it fades to collect it. weight: how often it's the one dropped.
 PICKUPS = {
-    "hotfix": dict(name="HOTFIX", rgb=(255, 90, 130)),  # heals
-    "cache": dict(name="CACHE HIT", rgb=(120, 200, 255)),  # restores a shield
-    "overclock": dict(name="OVERCLOCK", rgb=(255, 220, 80)),  # double fire rate
+    "pizza": dict(name="PIZZA", rgb=(255, 200, 80), weight=35),  # heals
+    "coffee": dict(name="COFFEE", rgb=(200, 140, 90), weight=35),  # overdrive
+    "cache": dict(name="CACHE HIT", rgb=(120, 200, 255), weight=20),  # a shield back
+    "rmrf": dict(name="rm -rf", rgb=(255, 70, 90), weight=10),  # deletes every bot
 }
 PICKUP_SECONDS = 4.5
-PICKUP_SIZE = 0.35
-HOTFIX_HEAL = 25
-OVERCLOCK_SECONDS = 5.0
+PICKUP_SIZE = 0.4
+PIZZA_HEAL = 25
+OVERDRIVE_SECONDS = 5.0
 
 # --- Splash ----------------------------------------------------------------
 
@@ -137,16 +159,20 @@ LOGO_PIECES = [
 ]
 SPLASH_SECONDS = 3.4
 
-PAUSE_CHOICES = ["Resume", "Restart", "Quit"]
+PAUSE_CHOICES = ["Resume", "Re-centre aim", "Options", "Restart", "Quit"]
+DEFAULT_OPTIONS = dict(autofire=False, turning="rotate")
 
 # --- The buttons -------------------------------------------------------------
 
-# Where Left, Right and enter (printed with a return arrow) sit beside the
-# screen: below its bottom edge at these x. From tools/locate_buttons.py; see
-# docs/button_positions.json.
+# Where the buttons sit beside the screen, from tools/locate_buttons.py (see
+# docs/button_positions.json): Left, Right and enter (printed with a return
+# arrow) below the bottom edge at these x, Up and Down beside the right edge
+# at these y.
 LEFT_X = 59
 RIGHT_X = 163
 ENTER_X = 255
+UP_Y = 72
+DOWN_Y = 167
 # The return-arrow glyph printed beside enter, as one stroke in a 26 x 16
 # box: a short bar along the top, a hook down the right, and a long bar back
 # along the bottom to an arrowhead pointing left.
@@ -167,6 +193,8 @@ def enter_glyph_points():
 
 
 ENTER_GLYPH = enter_glyph_points()
+# Reload's icon: most of a circle, ending in an arrowhead.
+RELOAD_ARC = [(5.5 * math.cos(math.radians(a)), 5.5 * math.sin(math.radians(a))) for a in range(40, 360, 20)]
 
 WAVE_SECONDS = 25.0
 GAME_OVER_LINES = [
@@ -200,6 +228,10 @@ def pressed(b):
     return b is not None and badge.pressed(b)
 
 
+def held(b):
+    return b is not None and badge.held(b)
+
+
 def pen(rgb, alpha=255):
     return color.rgb(rgb[0], rgb[1], rgb[2], alpha)
 
@@ -220,13 +252,19 @@ MUTED = pen((110, 130, 160))
 DANGER = pen((255, 70, 90))
 BLACK = pen((0, 0, 0))
 TRACK = pen((30, 36, 60))
+PANEL = pen((0, 0, 0), 170)
 WEAPON_PENS = [pen(w["rgb"]) for w in WEAPONS]
 WEAPON_DIM = [pen(dim(w["rgb"], 0.45)) for w in WEAPONS]
+AIM_LINE = [pen(dim(w["rgb"], 0.25)) for w in WEAPONS]
 MEGA_PEN = pen((255, 80, 200))
 MEGA_DIM = pen(dim((255, 80, 200), 0.45))
 PICKUP_PENS = {kind: pen(p["rgb"]) for kind, p in PICKUPS.items()}
 SHIELD_PEN = pen(PICKUPS["cache"]["rgb"])
 SHIELD_DIM = pen(dim(PICKUPS["cache"]["rgb"], 0.35))
+CRUST = pen((190, 110, 50))
+PEPPERONI = pen((210, 50, 50))
+CUP = pen((235, 225, 210))
+COFFEE = pen((110, 65, 35))
 SPLASH_BACKGROUND = pen((238, 245, 247))  # the studio site's horizon
 
 # Distant server towers on the horizon: (azimuth, width in degrees, height px).
@@ -263,6 +301,25 @@ def wrap(text, width):
     return lines
 
 
+WIDTHS = {}
+
+
+def text_width(text):
+    """Width of text in font.salty, measured once: measuring every frame adds up."""
+    w = WIDTHS.get(text)
+    if w is None:
+        screen.font = font.salty
+        w = WIDTHS[text] = screen.measure_text(text)[0]
+        if len(WIDTHS) > 200:
+            WIDTHS.clear()
+    return w
+
+
+def centred(text, y, left=0, width=WIDTH):
+    tw, _ = screen.measure_text(text)
+    screen.text(text, left + (width - tw) // 2, y)
+
+
 def stepped(upgrade, value):
     return value * upgrade["step"] if upgrade["stat"] == "reload" else value + upgrade["step"]
 
@@ -280,17 +337,20 @@ def stat_text(stat, value):
 
 
 class Aim:
-    """Yaw from the gyro, around whichever way is down, clamped to the limit."""
+    """Where you're aiming, in degrees, from the gyro (rotate) or from how
+    far the badge is tipped (tilt), within the limit either way."""
 
     def __init__(self):
+        self.mode = "rotate"
         self.bias = [0.0, 0.0, 0.0]
         self.down = [0.0, 0.0, 1.0]
+        self.level = 0.0  # accelerometer x as the badge was held at the start
         self.raw = 0.0
         self.centre = 0.0
         self.yaw = 0.0
         self.window = []
 
-    def calibrate(self, seconds=1.0):
+    def calibrate(self, mode, seconds=1.0):
         samples = []
         down = [0.0, 0.0, 0.0]
         end = time.ticks_add(time.ticks_ms(), int(seconds * 1000))
@@ -310,6 +370,13 @@ class Aim:
             if best is None or spread < best[1]:
                 best = (mean, spread)
         self.bias = best[0]
+        self.set_mode(mode)
+        self.level = down[0] / len(samples)
+
+    def set_mode(self, mode):
+        """Switches how aiming works, starting from straight ahead."""
+        self.mode = mode
+        self.level = badge.imu()[0]
         self.window = []
         self.raw = self.centre = self.yaw = 0.0
 
@@ -317,8 +384,19 @@ class Aim:
         length = math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) or 1.0
         self.down = [a[0] / length, a[1] / length, a[2] / length]
 
+    def tilt_rate(self, ax):
+        """Degrees a second to turn, for an accelerometer x reading."""
+        tip = TILT_SIGN * (self.level - ax) / 16384.0
+        if abs(tip) <= TILT_DEADZONE:
+            return 0.0
+        amount = min(1.0, (abs(tip) - TILT_DEADZONE) / (TILT_FULL - TILT_DEADZONE))
+        return TILT_DPS * amount * (1 if tip > 0 else -1)
+
     def update(self, dt):
         v = badge.imu()
+        if self.mode == "tilt":
+            self.yaw = max(-YAW_LIMIT, min(YAW_LIMIT, self.yaw + self.tilt_rate(v[0]) * dt))
+            return
         # Follow slow changes in how the badge is held.
         d = self.down
         self.set_down([d[i] * 0.9 + v[i] / 16384.0 * 0.1 for i in range(3)])
@@ -341,6 +419,7 @@ class Aim:
     def recentre(self):
         self.centre = self.raw
         self.yaw = 0.0
+        self.level = badge.imu()[0]
 
 
 class View:
@@ -414,6 +493,7 @@ class Pickup:
         self.azimuth = azimuth
         self.distance = distance
         self.life = PICKUP_SECONDS
+        self.phase = random.uniform(0, 6.28)
         self.taken = False
 
 
@@ -433,7 +513,9 @@ class Game:
         self.state = "splash"
         self.splash = 0.0
         self.choice = 0
-        self.best = load_best()
+        self.option_row = 0
+        self.options_from = "title"
+        self.best, self.options = load_state()
         logo = image.load("assets/studio_logo.png")
         self.logo = logo  # the pieces are windows onto it
         self.logo_pieces = [
@@ -453,9 +535,9 @@ class Game:
         self.popups = []
         self.weapon = 0
         self.cooldown = 0.0
-        self.ammo = [w["magazine"] for w in WEAPONS]
+        self.ammo = [float(w["magazine"]) for w in WEAPONS]
         self.reloading = [0.0] * len(WEAPONS)
-        self.overclock = 0.0
+        self.overdrive = 0.0
         self.offers = []
         self.card = 0
         self.score = 0
@@ -464,6 +546,7 @@ class Game:
         self.spawn_in = 1.5
         self.hurt = 0.0
         self.blocked = 0.0
+        self.nuked = 0.0
         self.message = ""
         self.message_time = 0.0
         self.scroll = 0.0
@@ -472,11 +555,9 @@ class Game:
     # --- rules ---
 
     def spawn(self):
-        kinds = ["spam"] * 5
+        kinds = ["forcepush"] * 3 + ["hallucinator"] * 3
         if self.wave >= 1:
-            kinds += ["hallucinator"] * 3
-        if self.wave >= 2:
-            kinds += ["forcepush"] * 3
+            kinds += ["node_modules"] * 2
         self.bots.append(Bot(random.choice(kinds), random.uniform(-SPAWN_ARC, SPAWN_ARC)))
 
     def offer_upgrades(self):
@@ -502,6 +583,12 @@ class Game:
             self.bots.append(Bot("mega", random.uniform(-SPAWN_ARC * 0.6, SPAWN_ARC * 0.6)))
         self.state = "play"
 
+    def reload_now(self):
+        """Up: start reloading the weapon in hand, unless it's full or already reloading."""
+        i = self.weapon
+        if self.reloading[i] <= 0 and self.ammo[i] < WEAPONS[i]["magazine"]:
+            self.reloading[i] = self.stats["reload"]
+
     def hit(self, shot, bot):
         matched = bot.spec["weak"] == shot.index
         damage = (shot.weapon["damage"] + self.stats["flat_damage"]) * (1 + self.stats["damage_bonus"])
@@ -517,22 +604,42 @@ class Game:
         else:
             self.popups.append([bot.azimuth, bot.distance, "+%d" % points, 0.8, TEXT])
         if random.random() < self.stats["pickup_chance"]:
-            kinds = ["hotfix", "overclock"]
-            if self.stats["shields"] > 0:
-                kinds.append("cache")
-            self.pickups.append(Pickup(random.choice(kinds), bot.azimuth, max(bot.distance, 5.0)))
+            self.pickups.append(Pickup(self.pickup_kind(), bot.azimuth, max(bot.distance, 5.0)))
+
+    def pickup_kind(self):
+        kinds = [k for k in PICKUPS if k != "cache" or self.stats["shields"] > 0]
+        roll = random.uniform(0, sum(PICKUPS[k]["weight"] for k in kinds))
+        for kind in kinds:
+            roll -= PICKUPS[kind]["weight"]
+            if roll <= 0:
+                return kind
+        return kinds[-1]
 
     def collect(self, pickup):
         pickup.taken = True
-        if pickup.kind == "hotfix":
-            self.health = min(self.stats["max_health"], self.health + HOTFIX_HEAL)
+        label = pickup.spec["name"]
+        if pickup.kind == "pizza":
+            self.health = min(self.stats["max_health"], self.health + PIZZA_HEAL)
+            label = "PIZZA +%d" % PIZZA_HEAL
         elif pickup.kind == "cache":
             self.shields = min(self.stats["shields"], self.shields + 1)
+        elif pickup.kind == "coffee":
+            self.overdrive = OVERDRIVE_SECONDS
+            label = "COFFEE: OVERDRIVE"
         else:
-            self.overclock = OVERCLOCK_SECONDS
-        self.popups.append([pickup.azimuth, pickup.distance, pickup.spec["name"], 1.0, PICKUP_PENS[pickup.kind]])
+            # rm -rf: every bot on the field, bar the boss, which had backups.
+            gone = [b for b in self.bots if b.hp > 0 and b.kind != "mega"]
+            points = sum(b.spec["points"] for b in gone)
+            for bot in gone:
+                bot.hp = 0
+            self.score += points
+            self.nuked = 0.5
+            self.say("rm -rf deleted %d bots. +%d%s" % (
+                len(gone), points, " (the Mega-agent had backups)" if any(b.kind == "mega" for b in self.bots) else ""))
+        self.popups.append([pickup.azimuth, pickup.distance, label, 1.0, PICKUP_PENS[pickup.kind]])
 
-    def update(self, dt):
+    def update(self, dt, trigger):
+        """Advances the game; trigger is whether the weapon is firing."""
         self.clock += dt
         self.scroll = (self.scroll + dt * 3.0) % 4.0
         wave = int(self.clock // WAVE_SECONDS)
@@ -546,26 +653,30 @@ class Game:
             self.spawn()
             self.spawn_in = max(0.45, 2.2 * 0.86 ** self.wave) * random.uniform(0.7, 1.3)
 
-        # Reloads run for every weapon at once, so switching away from an
-        # empty one is a way to keep firing.
-        for i, left in enumerate(self.reloading):
-            if left > 0:
-                self.reloading[i] = left - dt
+        # Reloads finish whether or not the weapon's in hand, and weapons on
+        # the holster slowly refill by themselves.
+        for i, weapon in enumerate(WEAPONS):
+            if self.reloading[i] > 0:
+                self.reloading[i] -= dt
                 if self.reloading[i] <= 0:
                     self.reloading[i] = 0.0
-                    self.ammo[i] = WEAPONS[i]["magazine"]
+                    self.ammo[i] = float(weapon["magazine"])
+            elif i != self.weapon and self.ammo[i] < weapon["magazine"]:
+                refill = weapon["magazine"] / (HOLSTER_REFILL * self.stats["reload"])
+                self.ammo[i] = min(float(weapon["magazine"]), self.ammo[i] + refill * dt)
 
-        # Fire while there's ammo; an empty magazine starts reloading.
+        # Fire while the trigger's held and there's a round in the magazine;
+        # emptying it starts a reload.
         w = WEAPONS[self.weapon]
-        rate = w["rate"] * self.stats["fire_rate"] * (2 if self.overclock > 0 else 1)
+        rate = w["rate"] * self.stats["fire_rate"] * (2 if self.overdrive > 0 else 1)
         self.cooldown -= dt
-        while self.cooldown <= 0 and self.ammo[self.weapon] > 0:
+        while trigger and self.cooldown <= 0 and self.reloading[self.weapon] <= 0 and self.ammo[self.weapon] >= 1:
             self.cooldown += 1.0 / rate
             for p in range(w["pellets"]):
                 offset = 0.0 if w["pellets"] == 1 else w["spread"] * (p / (w["pellets"] - 1) * 2 - 1)
                 self.shots.append(Shot(w, self.weapon, self.aim.yaw + offset))
             self.ammo[self.weapon] -= 1
-            if self.ammo[self.weapon] == 0:
+            if self.ammo[self.weapon] < 1:
                 self.reloading[self.weapon] = self.stats["reload"]
         self.cooldown = max(self.cooldown, 0.0)
 
@@ -607,7 +718,7 @@ class Game:
                 if self.shields > 0:
                     self.shields -= 1
                     self.blocked = 0.35
-                    self.say("Two-factor auth turned away a %s." % bot.spec["name"].lower())
+                    self.say("Two-factor auth turned away a %s." % bot.spec["name"])
                 else:
                     self.health -= bot.spec["hit"]
                     self.hurt = 0.35
@@ -628,9 +739,10 @@ class Game:
         for popup in self.popups:
             popup[3] -= dt
         self.popups = [p for p in self.popups if p[3] > 0]
-        self.overclock = max(0.0, self.overclock - dt)
+        self.overdrive = max(0.0, self.overdrive - dt)
         self.hurt = max(0.0, self.hurt - dt)
         self.blocked = max(0.0, self.blocked - dt)
+        self.nuked = max(0.0, self.nuked - dt)
         self.message_time = max(0.0, self.message_time - dt)
 
         if self.health <= 0:
@@ -638,7 +750,7 @@ class Game:
             self.state = "over"
             if self.score > self.best:
                 self.best = self.score
-                save_best(self.best)
+                save_state(self.best, self.options)
 
     def say(self, text):
         self.message = text
@@ -665,9 +777,11 @@ class Game:
                 continue
             screen.pen = TOWER
             screen.rectangle(int(left), HORIZON - height, max(1, int(right - left)), height)
-            screen.pen = WINDOW
-            for wy in range(HORIZON - height + 3, HORIZON - 2, 5):
-                screen.rectangle(int(left) + 1, wy, 1, 1)
+            if right - left >= 3:
+                # A few lit windows; every call costs, so not many.
+                screen.pen = WINDOW
+                for wy in range(HORIZON - height + 3, HORIZON - 2, 8):
+                    screen.rectangle(int(left) + 1, wy, 1, 1)
 
         # The floor grid: lines running away from you, and lines across that
         # stream toward you.
@@ -689,8 +803,9 @@ class Game:
 
     def edge_marker(self, x, y, p):
         # Something off screen: a mark at that edge, lower as it gets closer.
+        # The right one sits clear of the Up and Down overlays.
         screen.pen = p
-        screen.rectangle(2 if x < 0 else WIDTH - 6, int(min(HEIGHT - 26, max(HORIZON + 4, y))) - 4, 4, 8)
+        screen.rectangle(2 if x < 0 else WIDTH - 32, int(min(HEIGHT - 26, max(HORIZON + 4, y))) - 4, 4, 8)
 
     def draw_bots(self):
         view = self.view
@@ -715,6 +830,14 @@ class Game:
                 screen.pen = glow
                 screen.rectangle(int(x) - 1, int(y) - 1, 3, 3)
                 continue
+            if r < 7:
+                # Far off, the antenna and health bar don't show: just the
+                # body and a lit visor, in three calls rather than seven.
+                screen.pen = body
+                screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
+                screen.pen = glow
+                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), max(1, int(r * 0.35)))
+                continue
             screen.pen = body
             screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
             screen.pen = BLACK
@@ -735,27 +858,57 @@ class Game:
                 screen.rectangle(int(x - r), int(y + r + 2), max(1, int(2 * r * max(bot.hp, 0) / spec["hp"])), 2)
 
     def draw_pickups(self):
+        t = time.ticks_ms() / 1000
         for pickup in self.pickups:
             # Fading out: blink through the last second.
             if pickup.life < 1.0 and int(pickup.life * 10) % 2:
                 continue
-            at = self.view.polar(pickup.azimuth, pickup.distance, 0.7 + 0.08 * math.sin(pickup.life * 5))
+            # Pickups bob up and down, which bots never do.
+            at = self.view.polar(pickup.azimuth, pickup.distance, 0.75 + 0.25 * math.sin(t * 3.0 + pickup.phase))
             if at is None:
                 continue
             x, y, depth = at
-            p = PICKUP_PENS[pickup.kind]
-            r = max(3, int(pickup.size * FOCAL / depth))
+            r = max(4, int(pickup.size * FOCAL / depth))
             if x + r < 0 or x - r > WIDTH:
-                self.edge_marker(x, y, p)
+                self.edge_marker(x, y, PICKUP_PENS[pickup.kind])
                 continue
-            screen.pen = p
-            for k in (0, 1):
-                screen.line(x, y - r + k, x + r - k, y)
-                screen.line(x + r - k, y, x, y + r - k)
-                screen.line(x, y + r - k, x - r + k, y)
-                screen.line(x - r + k, y, x, y - r + k)
-            core = max(1, r // 3)
-            screen.rectangle(int(x) - core // 2, int(y) - core // 2, core, core)
+            if pickup.kind == "pizza":
+                screen.pen = PICKUP_PENS["pizza"]
+                screen.triangle(int(x - r), int(y - r * 0.6), int(x + r), int(y - r * 0.6), int(x), int(y + r))
+                screen.pen = CRUST
+                screen.rectangle(int(x - r), int(y - r * 0.85), int(2 * r), max(2, int(r * 0.3)))
+                screen.pen = PEPPERONI
+                for px, py in ((-0.35, -0.3), (0.3, -0.25), (0.0, 0.25)):
+                    screen.circle(int(x + px * r), int(y + py * r), max(1, int(r * 0.17)))
+            elif pickup.kind == "coffee":
+                screen.pen = CUP
+                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), int(r * 1.1))
+                screen.circle(int(x + r * 0.75), int(y + r * 0.1), max(2, int(r * 0.3)))
+                screen.pen = FLOOR
+                screen.circle(int(x + r * 0.75), int(y + r * 0.1), max(1, int(r * 0.15)))
+                screen.pen = COFFEE
+                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), max(2, int(r * 0.25)))
+                screen.pen = CUP
+                for k in range(3):  # steam
+                    sway = int(r * 0.15 * math.sin(t * 6 + k))
+                    screen.rectangle(int(x - r * 0.25) + sway, int(y - r * 0.65 - k * r * 0.2), 2, 2)
+                    screen.rectangle(int(x + r * 0.2) - sway, int(y - r * 0.6 - k * r * 0.2), 2, 2)
+            elif pickup.kind == "cache":
+                screen.pen = PICKUP_PENS["cache"]
+                screen.rectangle(int(x - r * 0.7), int(y - r * 0.7), int(r * 1.4), int(r * 0.8))
+                screen.triangle(int(x - r * 0.7), int(y + r * 0.1), int(x + r * 0.7), int(y + r * 0.1), int(x), int(y + r))
+                screen.pen = WHITE
+                screen.circle(int(x), int(y - r * 0.15), max(1, int(r * 0.2)))
+            else:
+                screen.pen = PICKUP_PENS["rmrf"]
+                screen.rectangle(int(x - r * 1.4), int(y - r * 0.55), int(r * 2.8), int(r * 1.1))
+                screen.pen = BLACK
+                screen.rectangle(int(x - r * 1.4) + 2, int(y - r * 0.55) + 2, int(r * 2.8) - 4, int(r * 1.1) - 4)
+                if r >= 7:
+                    screen.font = font.winds
+                    screen.pen = PICKUP_PENS["rmrf"]
+                    tw, th = screen.measure_text("rm -rf")
+                    screen.text("rm -rf", int(x) - tw // 2, int(y) - th // 2)
 
     def draw_shots(self):
         for shot in self.shots:
@@ -767,14 +920,55 @@ class Game:
             screen.pen = WEAPON_PENS[shot.index]
             screen.rectangle(int(x) - size // 2, int(y) - size // 2, size, size)
 
+    def draw_side_tab(self, y, icon, active=False, progress=None):
+        """An overlay on the right edge beside the button at y, showing what
+        it does: 'fire', 'reload', 'options', 'up' or 'down'."""
+        x0, cx = WIDTH - 24, WIDTH - 11
+        screen.pen = PANEL
+        screen.rectangle(x0, y - 13, 24, 26)
+        lit = WEAPON_PENS[self.weapon] if icon in ("fire", "reload") else WEAPON_PENS[0]
+        screen.pen = lit if active else MUTED
+        screen.rectangle(x0, y - 13, 2, 26)
+        if icon == "fire" and self.options["autofire"]:
+            screen.font = font.winds
+            centred("auto", y - 6, x0 + 2, 22)
+        elif icon == "fire":
+            if active:
+                screen.circle(cx, y, 6)
+                screen.pen = BLACK
+            for dx, dy, w, h in ((-6, 0, 4, 1), (3, 0, 4, 1), (0, -6, 1, 4), (0, 3, 1, 4)):
+                screen.rectangle(cx + dx, y + dy, w, h)
+            screen.rectangle(cx - 1, y - 1, 2, 2)
+        elif icon == "reload":
+            points = RELOAD_ARC
+            if progress is not None:
+                lit_count = int(len(points) * progress)
+                for i, (px, py) in enumerate(points):
+                    screen.pen = lit if i < lit_count else TRACK
+                    screen.rectangle(int(cx + px) - 1, int(y + py) - 1, 2, 2)
+            else:
+                for px, py in points:
+                    screen.rectangle(int(cx + px) - 1, int(y + py) - 1, 2, 2)
+            ex, ey = points[-1]
+            screen.triangle(int(cx + ex) - 3, int(y + ey) - 2, int(cx + ex) + 3, int(y + ey) - 2, int(cx + ex), int(y + ey) + 3)
+        elif icon == "options":
+            screen.circle(cx, y, 5)
+            for k in range(8):
+                a = math.radians(k * 45)
+                screen.rectangle(int(cx + 6.5 * math.cos(a)) - 1, int(y + 6.5 * math.sin(a)) - 1, 3, 3)
+            screen.pen = BLACK
+            screen.circle(cx, y, 2)
+        else:  # 'up' or 'down': a plain arrowhead
+            s = -1 if icon == "up" else 1
+            screen.triangle(cx - 6, y - 3 * s, cx + 6, y - 3 * s, cx, y + 4 * s)
+
     def draw_hud(self):
         cx, cy = WIDTH // 2, HORIZON + int(0.4 * FOCAL / 6.0)
         reloading = self.reloading[self.weapon] > 0
         # Only left and right matter when aiming, so a faint line marks it
         # from the horizon down, under the crosshair.
-        screen.pen = WEAPON_DIM[self.weapon]
-        for y in range(HORIZON + 2, HEIGHT - 28, 6):
-            screen.rectangle(cx, y, 1, 3)
+        screen.pen = AIM_LINE[self.weapon]
+        screen.line(cx, HORIZON + 2, cx, HEIGHT - 28)
         screen.pen = WEAPON_DIM[self.weapon] if reloading else WEAPON_PENS[self.weapon]
         screen.rectangle(cx - 7, cy, 5, 1)
         screen.rectangle(cx + 3, cy, 5, 1)
@@ -783,16 +977,14 @@ class Game:
         if reloading:
             screen.font = font.winds
             screen.pen = TEXT
-            tw, _ = screen.measure_text("reloading")
-            screen.text("reloading", cx - tw // 2, cy + 10)
+            centred("reloading", cy + 10)
 
         screen.font = font.salty
         for azimuth, distance, text, life, p in self.popups:
             at = self.view.polar(azimuth, distance, 1.0)
             if at:
                 screen.pen = p
-                tw, _ = screen.measure_text(text)
-                screen.text(text, int(at[0]) - tw // 2, int(at[1]) - 10 - int((1.0 - life) * 20))
+                screen.text(text, int(at[0]) - text_width(text) // 2, int(at[1]) - 10 - int((1.0 - life) * 20))
 
         # Health, then shields.
         screen.pen = MUTED
@@ -804,10 +996,10 @@ class Game:
         for i in range(self.stats["shields"]):
             screen.pen = SHIELD_PEN if i < self.shields else SHIELD_DIM
             screen.rectangle(126 + i * 10, 6, 7, 9)
-        if self.overclock > 0:
+        if self.overdrive > 0:
             screen.font = font.winds
-            screen.pen = PICKUP_PENS["overclock"]
-            screen.text("OVERCLOCK %.1f" % self.overclock, 40, 17)
+            screen.pen = PICKUP_PENS["coffee"]
+            screen.text("OVERDRIVE %.1f" % self.overdrive, 40, 17)
             screen.font = font.salty
         screen.pen = TEXT
         label = "v0.%d.0" % (self.wave + 1)
@@ -820,7 +1012,7 @@ class Game:
         # Weapons, each with its ammo, or how far along its reload is.
         x = 6
         for i, weapon in enumerate(WEAPONS):
-            tw, _ = screen.measure_text(weapon["name"])
+            tw = text_width(weapon["name"])
             if i == self.weapon:
                 screen.pen = WEAPON_PENS[i]
                 screen.rectangle(x - 3, HEIGHT - 23, tw + 6, 15)
@@ -839,40 +1031,43 @@ class Game:
             screen.rectangle(x - 3, HEIGHT - 6, int((tw + 6) * done), 3)
             x += tw + 14
 
+        # What Up and Down do, beside them.
+        progress = 1 - self.reloading[self.weapon] / self.stats["reload"] if reloading else None
+        self.draw_side_tab(UP_Y, "reload", reloading, progress)
+        self.draw_side_tab(DOWN_Y, "fire", held(DOWN) or self.options["autofire"])
+
         if self.message_time > 0:
             screen.pen = TEXT
             y = 31
-            for line in wrap(self.message, WIDTH - 16):
-                mw, _ = screen.measure_text(line)
-                screen.text(line, (WIDTH - mw) // 2, y)
+            for line in wrap(self.message, WIDTH - 40):
+                centred(line, y)
                 y += 16
 
-        for timer, colour in ((self.hurt, (255, 40, 60)), (self.blocked, PICKUPS["cache"]["rgb"])):
+        for timer, colour in ((self.hurt, (255, 40, 60)), (self.blocked, PICKUPS["cache"]["rgb"]),
+                              (self.nuked, PICKUPS["rmrf"]["rgb"])):
             if timer > 0:
-                screen.pen = pen(colour, int(160 * timer / 0.35))
+                screen.pen = pen(colour, int(160 * min(1.0, timer / 0.35)))
                 screen.rectangle(0, 0, WIDTH, 4)
                 screen.rectangle(0, HEIGHT - 4, WIDTH, 4)
                 screen.rectangle(0, 0, 4, HEIGHT)
                 screen.rectangle(WIDTH - 4, 0, 4, HEIGHT)
 
-    def draw_card(self, lines, colour):
+    def draw_card(self, lines, colour, top=40, left=20, width=WIDTH - 40):
         # The title in the big font, then each line wrapped to the card.
         screen.font = font.salty
         body = []
         for line in lines[1:]:
-            body += wrap(line, WIDTH - 60)
-        screen.pen = pen((0, 0, 0), 170)
-        screen.rectangle(20, 40, WIDTH - 40, 50 + 17 * len(body))
+            body += wrap(line, width - 20)
+        screen.pen = PANEL
+        screen.rectangle(left, top, width, 46 + 17 * len(body))
         screen.font = font.ignore
         screen.pen = colour
-        lw, _ = screen.measure_text(lines[0])
-        screen.text(lines[0], (WIDTH - lw) // 2, 50)
+        centred(lines[0], top + 8, left, width)
         screen.font = font.salty
         screen.pen = TEXT
-        y = 84
+        y = top + 42
         for line in body:
-            lw, _ = screen.measure_text(line)
-            screen.text(line, (WIDTH - lw) // 2, y)
+            centred(line, y, left, width)
             y += 17
 
     def draw_splash(self):
@@ -927,61 +1122,71 @@ class Game:
         self.draw_shots()
         self.draw_hud()
 
-    def draw_pause(self):
-        left, top, width = 70, 56, WIDTH - 140
-        screen.pen = pen((0, 0, 0), 190)
-        screen.rectangle(left, top, width, 60 + 26 * len(PAUSE_CHOICES))
+    def draw_menu(self, title, rows, chosen, top):
+        """A panel of rows with the chosen one lit, and Up and Down beside it."""
+        left, width = 60, WIDTH - 120
+        screen.pen = PANEL
+        screen.rectangle(left, top, width, 52 + 26 * len(rows))
         screen.font = font.ignore
         screen.pen = WEAPON_PENS[0]
-        tw, _ = screen.measure_text("PAUSED")
-        screen.text("PAUSED", (WIDTH - tw) // 2, top + 8)
+        centred(title, top + 8)
         screen.font = font.salty
-        y = top + 48
-        for i, label in enumerate(PAUSE_CHOICES):
-            lw, _ = screen.measure_text(label)
-            if i == self.choice:
+        y = top + 46
+        for i, label in enumerate(rows):
+            if i == chosen:
                 screen.pen = WEAPON_PENS[0]
-                screen.rectangle(left + 20, y - 3, width - 40, 22)
+                screen.rectangle(left + 12, y - 3, width - 24, 22)
                 screen.pen = BLACK
             else:
                 screen.pen = TEXT
-            screen.text(label, (WIDTH - lw) // 2, y)
+            centred(label, y)
             y += 26
+        self.draw_side_tab(UP_Y, "up", True)
+        self.draw_side_tab(DOWN_Y, "down", True)
+        self.draw_enter_hint()
+
+    def option_rows(self):
+        firing = "Automatic" if self.options["autofire"] else "Hold Down"
+        turning = "Tilt" if self.options["turning"] == "tilt" else "Rotate"
+        return ["Firing: < %s >" % firing, "Turning: < %s >" % turning, "Done"]
 
     def draw_upgrades(self):
         screen.pen = pen((0, 0, 0), 160)
         screen.rectangle(0, 0, WIDTH, HEIGHT)
         screen.font = font.salty
         screen.pen = WEAPON_PENS[0]
-        title = "v0.%d.0 shipped! Pick an upgrade" % (self.wave + 1)
-        tw, _ = screen.measure_text(title)
-        screen.text(title, (WIDTH - tw) // 2, 14)
-        width, gap, top = 96, 6, 42
+        centred("v0.%d.0 shipped! Pick an upgrade" % (self.wave + 1), 8)
+        width, gap, top = 98, 5, 32
         left = (WIDTH - len(self.offers) * width - (len(self.offers) - 1) * gap) // 2
         for i, upgrade in enumerate(self.offers):
             x = left + i * (width + gap)
             chosen = i == self.card
             y = top - (4 if chosen else 0)
             screen.pen = WEAPON_PENS[0] if chosen else TRACK
-            screen.rectangle(x - 2, y - 2, width + 4, 144)
+            screen.rectangle(x - 2, y - 2, width + 4, 158)
             screen.pen = pen((10, 14, 30))
-            screen.rectangle(x, y, width, 140)
+            screen.rectangle(x, y, width, 154)
             screen.font = font.salty
             screen.pen = WEAPON_PENS[0] if chosen else TEXT
-            ty = y + 6
+            ty = y + 5
             for line in wrap(upgrade["name"], width - 10):
                 screen.text(line, x + 5, ty)
-                ty += 16
+                ty += 15
             screen.font = font.winds
+            screen.pen = MUTED
+            ty += 4
+            for line in wrap(upgrade["flavor"], width - 10):
+                screen.text(line, x + 5, ty)
+                ty += 12
             screen.pen = TEXT
-            ty += 6
+            ty += 5
             for line in wrap(upgrade["effect"], width - 10):
                 screen.text(line, x + 5, ty)
-                ty += 13
+                ty += 12
             stat = upgrade["stat"]
             now = self.stats[stat]
-            screen.pen = MUTED
-            screen.text(stat_text(stat, now) + " -> " + stat_text(stat, stepped(upgrade, now)), x + 5, y + 120)
+            screen.pen = WEAPON_PENS[0] if chosen else MUTED
+            screen.text(stat_text(stat, now) + " -> " + stat_text(stat, stepped(upgrade, now)), x + 5, y + 138)
         self.draw_pointer(LEFT_X, -1)
         self.draw_pointer(RIGHT_X, 1)
         self.draw_enter_hint()
@@ -995,27 +1200,55 @@ class Game:
                 self.state = "title"
             return False
 
-        if self.state in ("title", "over"):
+        if self.state in ("title", "over", "options"):
             # Aim isn't calibrated until a game starts; keep the view still
             # and let the floor stream by.
             self.scroll = (self.scroll + dt * 3.0) % 4.0
 
         if self.state == "title":
             self.draw_world()
+            aim = "Tilt" if self.options["turning"] == "tilt" else "Turn"
+            fire = "Your weapon fires itself" if self.options["autofire"] else "Hold Down to fire"
             self.draw_card([
                 "REPO DEFENDER",
                 "Rogue AI bots want your main branch.",
-                "Turn to aim. Your weapon fires itself.",
-                "Left/Right: switch. Match colours for x2.",
+                "%s to aim. %s, Up reloads." % (aim, fire),
+                "Left/Right: weapon. Match colours for x2.",
                 "Shoot pickups. Upgrade every release.",
-                "Press enter to defend. Best: %d" % self.best,
-            ], WEAPON_PENS[0])
+                "Enter to defend. Best: %d" % self.best,
+            ], WEAPON_PENS[0], top=6, left=8, width=WIDTH - 40)
             screen.font = font.salty
             screen.pen = MUTED
             screen.text("Repo Defender v" + VERSION, 6, HEIGHT - 20)
+            self.draw_side_tab(UP_Y, "options", True)
             self.draw_enter_hint()
-            if pressed(SELECT):
+            if pressed(UP):
+                self.open_options("title")
+            elif pressed(SELECT):
                 self.start()
+            return False
+
+        if self.state == "options":
+            rows = self.option_rows()
+            if pressed(UP):
+                self.option_row = (self.option_row - 1) % len(rows)
+            if pressed(DOWN):
+                self.option_row = (self.option_row + 1) % len(rows)
+            change = pressed(LEFT) or pressed(RIGHT) or pressed(SELECT)
+            if change and self.option_row == 0:
+                self.options["autofire"] = not self.options["autofire"]
+                save_state(self.best, self.options)
+            elif change and self.option_row == 1:
+                self.options["turning"] = "rotate" if self.options["turning"] == "tilt" else "tilt"
+                save_state(self.best, self.options)
+            elif pressed(SELECT) and self.option_row == 2:
+                self.close_options()
+                return False
+            if self.options_from == "paused":
+                self.draw_game()
+            else:
+                self.draw_world()
+            self.draw_menu("OPTIONS", self.option_rows(), self.option_row, 40)
             return False
 
         if self.state == "over":
@@ -1058,10 +1291,15 @@ class Game:
                 if choice == "Restart":
                     self.start()
                     return False
+                if choice == "Options":
+                    self.open_options("paused")
+                    return False
+                if choice == "Re-centre aim":
+                    self.aim.recentre()
                 self.state = "play"
             self.draw_game()
             if self.state == "paused":
-                self.draw_pause()
+                self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 20)
             return False
 
         if pressed(SELECT):
@@ -1069,40 +1307,61 @@ class Game:
             self.state = "paused"
             self.choice = 0
             self.draw_game()
-            self.draw_pause()
+            self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 20)
             return False
         self.aim.update(dt)
         if pressed(UP):
-            self.aim.recentre()
+            self.reload_now()
         if pressed(LEFT):
             self.weapon = (self.weapon - 1) % len(WEAPONS)
         if pressed(RIGHT):
             self.weapon = (self.weapon + 1) % len(WEAPONS)
-        self.update(dt)
+        self.update(dt, self.options["autofire"] or held(DOWN))
         self.draw_game()
         return False
+
+    def open_options(self, came_from):
+        self.options_from = came_from
+        self.option_row = 0
+        self.turning_was = self.options["turning"]
+        self.state = "options"
+
+    def close_options(self):
+        if self.options_from == "paused":
+            # Switching how turning works mid-game starts it from straight ahead.
+            if self.options["turning"] != self.turning_was:
+                self.aim.set_mode(self.options["turning"])
+            self.state = "paused"
+        else:
+            self.state = "title"
 
     def start(self):
         self.draw_world()
         self.draw_card(["HOLD STILL", "Calibrating the firewall..."], WEAPON_PENS[1])
         display.update()
-        self.aim.calibrate()
+        self.aim.calibrate(self.options["turning"])
         self.reset()
         self.state = "play"
 
 
-def load_best():
+def load_state():
+    """The best score and the options, from /state."""
     try:
         with open(STATE_PATH) as f:
-            return int(json.load(f).get("best", 0))
+            saved = json.load(f)
     except (OSError, ValueError):
-        return 0
+        saved = {}
+    options = dict(DEFAULT_OPTIONS)
+    for key, value in saved.get("options", {}).items():
+        if key in options and type(value) == type(options[key]):
+            options[key] = value
+    return int(saved.get("best", 0)), options
 
 
-def save_best(best):
+def save_state(best, options):
     try:
         with open(STATE_PATH, "w") as f:
-            json.dump({"best": best}, f)
+            json.dump({"best": best, "options": options}, f)
     except OSError:
         pass
 
