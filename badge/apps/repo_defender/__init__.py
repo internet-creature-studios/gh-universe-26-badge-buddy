@@ -7,9 +7,9 @@ once you have a weapon its card improves it. Left and Right switch between
 the weapons you have, and the ones you aren't holding slowly refill. Each
 kind of bot comes at you its own way: bugs rush straight in, node_modules
 hauls in slow and heavy, hallucinations sway side to side, and now and then
-the rogue agent lumbers in. Destroyed bots sometimes leave a bobbing pickup:
-shoot it to collect it. After each wave (a "release") you pick one of three
-upgrade cards. A bot that reaches you takes a shield if one is charged, or
+the rogue agent lumbers in. Destroyed bots sometimes drop a bobbing pickup
+off to one side: shoot it to collect it. After each wave (a "release") you
+pick one of three upgrade cards, and now and then one is a stronger + card. A bot that reaches you takes a shield if one is charged, or
 merges itself into main and costs you health, and at zero main is theirs.
 
 It opens on the studio's logo. Up opens settings from any screen (turning,
@@ -26,7 +26,7 @@ import time
 
 # The game's own version (see examples/repo-defender/CHANGELOG.md), not the
 # in-game "releases" each wave calls itself.
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 # --- Aim -------------------------------------------------------------------
 
@@ -111,43 +111,59 @@ BASE_STATS = dict(
     reload=1.2,  # seconds to refill a magazine
     max_health=100,
     shields=0,  # shield slots
+    risk=0.0,  # Friday Deploy: 0.1 is +10% score, and bots with 10% more health and speed
 )
 MAX_SHIELDS = 3
 # Seconds after a bot last reached you before a shield comes back, and
 # between each one after that.
 SHIELD_RECHARGE = 8.0
 
-# Stat cards. step is what one pick adds, or for reload, what it multiplies by.
+# Any card offered has this chance of being its + version, which does twice
+# as much (effect_plus says what).
+PLUS_CHANCE = 0.15
+
+# Stat cards. step is what one pick adds, or for reload, how much quicker it
+# makes them. Two-Factor Auth+ adds one shield like the plain card, and
+# fully heals you as well.
 UPGRADES = [
     dict(stat="fire_rate", name="Larger Runners", flavor="Your CI finally got the good machines.",
-         effect="+15% fire rate", step=0.15),
+         effect="+15% fire rate", effect_plus="+30% fire rate", step=0.15),
     dict(stat="flat_damage", name="CODEOWNERS", flavor="Nothing gets through without your say-so.",
-         effect="+1 damage on every hit", step=1),
+         effect="+1 damage on every hit", effect_plus="+2 damage on every hit", step=1),
     dict(stat="damage_bonus", name="Copilot", flavor="Fight AI with AI. Seems only fair.",
-         effect="+25% damage", step=0.25),
+         effect="+25% damage", effect_plus="+50% damage", step=0.25),
     dict(stat="pickup_chance", name="Bug Bounty", flavor="Bots drop loot now. Finders keepers!",
-         effect="+8% pickup chance", step=0.08),
+         effect="+8% pickup chance", effect_plus="+16% pickup chance", step=0.08),
     dict(stat="reload", name="Automated PR Review", flavor="Reloads approve themselves. LGTM!",
-         effect="15% faster reloads", step=0.85),
+         effect="15% faster reloads", effect_plus="30% faster reloads", step=0.15),
     dict(stat="max_health", name="Branch Protection", flavor="main has been hitting the gym.",
-         effect="+20 max health, and heals 20", step=20),
+         effect="+20 max health, and heals 20", effect_plus="+40 max health, and heals 40", step=20),
     dict(stat="shields", name="Two-Factor Auth", flavor="Bots never have their phone on them.",
-         effect="+1 recharging shield", step=1),
+         effect="+1 recharging shield", effect_plus="+1 recharging shield, and a full heal", step=1),
+    dict(stat="risk", name="Friday Deploy", flavor="What could possibly go wrong?",
+         effect="+10% score, but bots get +10% health and speed",
+         effect_plus="+20% score, but bots get +20% health and speed", step=0.10),
 ]
 
 # Weapon cards, rolled alongside. Without the weapon, its card gives it to
-# you; with it, the card improves it: boost is what it adds step to.
+# you; with it, the card improves it: boost is what it adds step to. A + card
+# gives you the weapon already improved once, or improves it twice.
 WEAPON_CARDS = [
     dict(weapon=0, boost="magazine", step=10, name="More Lint Rules",
-         flavor="Your linter has opinions now. So many opinions.", effect="+10 rounds per LINT magazine"),
+         flavor="Your linter has opinions now. So many opinions.", effect="+10 rounds per LINT magazine",
+         effect_plus="+20 rounds per LINT magazine"),
     dict(weapon=1, boost="damage", step=2, name="Senior Reviewer",
          flavor="Leaves very, very thorough comments.", effect="+2 damage per REVIEW shot",
+         effect_plus="+4 damage per REVIEW shot",
          unlock="Code Review", unlock_flavor="A second pair of eyes that goes right through things.",
-         unlock_effect="New weapon: REVIEW, shots that pierce"),
+         unlock_effect="New weapon: REVIEW, shots that pierce",
+         unlock_effect_plus="New weapon: REVIEW, piercing shots, +2 damage"),
     dict(weapon=2, boost="pellets", step=1, name="Revert Harder",
          flavor="Undo even more of whatever's in front of you.", effect="+1 pellet in REVERT's spread",
+         effect_plus="+2 pellets in REVERT's spread",
          unlock="git revert", unlock_flavor="Undo everything in front of you, all at once.",
-         unlock_effect="New weapon: REVERT, a wide spread"),
+         unlock_effect="New weapon: REVERT, a wide spread",
+         unlock_effect_plus="New weapon: REVERT, a wide spread, +1 pellet"),
 ]
 
 # Destroyed bots sometimes leave one bobbing where they were. Shoot it
@@ -160,6 +176,10 @@ PICKUPS = {
 }
 PICKUP_SECONDS = 4.5
 PICKUP_SIZE = 0.4
+# A pickup lands this many degrees to one side of where you're aiming, and
+# this far away, so you see it before you shoot it.
+PICKUP_OFFSET = (12.0, 19.0)
+PICKUP_DISTANCE = (7.0, 13.0)
 PIZZA_HEAL = 25
 OVERDRIVE_SECONDS = 5.0
 
@@ -210,6 +230,24 @@ def enter_glyph_points():
 
 
 ENTER_GLYPH = enter_glyph_points()
+
+
+def polyline(*corners):
+    """Points a pixel apart along straight strokes through corners."""
+    points = []
+    for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        points += [(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n) for k in range(n)]
+    return points + [corners[-1]]
+
+
+# What the upgrade screen shows right over Left, Right and enter: points
+# around the button's x, up from just above the bottom edge.
+BUTTON_MARKS = {
+    "left": polyline((4, -18), (-5, -9), (4, 0)),
+    "right": polyline((-4, -18), (5, -9), (-4, 0)),
+    "check": polyline((-9, -8), (-3, -2), (9, -16)),
+}
 # Reload's icon: most of a circle, ending in an arrowhead.
 RELOAD_ARC = [(5.5 * math.cos(math.radians(a)), 5.5 * math.sin(math.radians(a))) for a in range(40, 360, 20)]
 
@@ -278,6 +316,8 @@ FANG = pen((235, 235, 225))
 RIVET = pen((185, 170, 150))
 TERMINAL = WEAPON_PENS[0]
 PICKUP_PENS = {kind: pen(p["rgb"]) for kind, p in PICKUPS.items()}
+PLUS_PEN = pen((255, 205, 70))
+PLUS_DIM = pen((125, 98, 35))
 SHIELD_PEN = pen(PICKUPS["cache"]["rgb"])
 SHIELD_DIM = pen(dim(PICKUPS["cache"]["rgb"], 0.35))
 CRUST = pen((190, 110, 50))
@@ -339,14 +379,17 @@ def centred(text, y, left=0, width=WIDTH):
     screen.text(text, left + (width - tw) // 2, y)
 
 
-def stepped(upgrade, value):
-    return value * upgrade["step"] if upgrade["stat"] == "reload" else value + upgrade["step"]
+def stepped(upgrade, value, plus=False):
+    """A stat after taking its card. A + card steps twice as far, except for
+    shields, where it heals you instead."""
+    step = upgrade["step"] * (2 if plus and upgrade["stat"] != "shields" else 1)
+    return value * (1 - step) if upgrade["stat"] == "reload" else value + step
 
 
 def stat_text(stat, value):
     if stat in ("fire_rate", "pickup_chance"):
         return "%d%%" % round(value * 100)
-    if stat == "damage_bonus":
+    if stat in ("damage_bonus", "risk"):
         return "+%d%%" % round(value * 100)
     if stat == "flat_damage":
         return "+%d" % value
@@ -486,19 +529,21 @@ class View:
 
 
 class Bot:
-    def __init__(self, kind, azimuth):
+    def __init__(self, kind, azimuth, toughness=1.0):
         self.kind = kind
         self.spec = BOTS[kind]
         self.size = self.spec["size"]
         self.home = azimuth
         self.azimuth = azimuth
         self.distance = SPAWN_DISTANCE
-        self.hp = self.spec["hp"]
+        # Friday Deploy raises toughness: more health, and faster.
+        self.hp = self.max_hp = self.spec["hp"] * toughness
+        self.speed = self.spec["speed"] * toughness
         self.flash = 0.0
         self.phase = random.uniform(0, 6.28)
 
     def update(self, dt, t):
-        self.distance -= self.spec["speed"] * dt
+        self.distance -= self.speed * dt
         if self.spec["weave"]:
             self.azimuth = self.home + self.spec["weave"] * math.sin(t * 2.0 + self.phase)
         self.flash = max(0.0, self.flash - dt)
@@ -581,58 +626,78 @@ class Game:
 
     # --- rules ---
 
+    def new_bot(self, kind, azimuth):
+        return Bot(kind, azimuth, 1 + self.stats["risk"])
+
+    def points(self, bot):
+        return round(bot.spec["points"] * (1 + self.stats["risk"]))
+
     def spawn(self):
         kinds = ["bug"] * 3 + ["hallucination"] * 3
         if self.wave >= 1:
             kinds += ["node_modules"] * 2
-        self.bots.append(Bot(random.choice(kinds), random.uniform(-SPAWN_ARC, SPAWN_ARC)))
+        self.bots.append(self.new_bot(random.choice(kinds), random.uniform(-SPAWN_ARC, SPAWN_ARC)))
 
     def offer_upgrades(self):
-        """Freezes the game on three different cards to choose from."""
+        """Freezes the game on three different cards to choose from, each
+        (card, plus)."""
         pool = [u for u in UPGRADES if not (u["stat"] == "shields" and self.stats["shields"] >= MAX_SHIELDS)]
         pool += WEAPON_CARDS
         self.offers = []
         while pool and len(self.offers) < 3:
             pick = random.choice(pool)
             pool.remove(pick)
-            self.offers.append(pick)
+            self.offers.append((pick, random.random() < PLUS_CHANCE))
         self.card = len(self.offers) // 2
         self.state = "upgrade"
 
-    def card_text(self, card):
+    def card_text(self, card, plus=False):
         """What a card says, as things stand: name, flavour, effect, and the
         change it makes."""
+        mark = "+" if plus else ""
+        effect = "effect_plus" if plus else "effect"
         if "weapon" in card:
             i = card["weapon"]
-            if not self.owned[i]:
-                return card["unlock"], card["unlock_flavor"], card["unlock_effect"], "new weapon"
             now = getattr(self, card["boost"])[i]
             unit = {"magazine": " rounds", "damage": " damage", "pellets": " pellets"}[card["boost"]]
-            return card["name"], card["flavor"], card["effect"], "%d -> %d%s" % (now, now + card["step"], unit)
+            if not self.owned[i]:
+                change = "new: %d%s" % (now + card["step"], unit) if plus else "new weapon"
+                return card["unlock"] + mark, card["unlock_flavor"], card["unlock_" + effect], change
+            later = now + card["step"] * (2 if plus else 1)
+            return card["name"] + mark, card["flavor"], card[effect], "%d -> %d%s" % (now, later, unit)
         stat = card["stat"]
         now = self.stats[stat]
-        return card["name"], card["flavor"], card["effect"], stat_text(stat, now) + " -> " + stat_text(stat, stepped(card, now))
+        change = stat_text(stat, now) + " -> " + stat_text(stat, stepped(card, now, plus))
+        return card["name"] + mark, card["flavor"], card[effect], change
 
-    def take_upgrade(self, card):
-        name = self.card_text(card)[0]
+    def take_upgrade(self, card, plus=False):
+        name = self.card_text(card, plus)[0]
         if "weapon" in card:
             i = card["weapon"]
-            if not self.owned[i]:
-                self.owned[i] = True
-                self.ammo[i] = float(self.magazine[i])
-                self.weapon = i  # try it out straight away
+            boost = getattr(self, card["boost"])
+            if self.owned[i]:
+                boost[i] += card["step"] * (2 if plus else 1)
             else:
-                getattr(self, card["boost"])[i] += card["step"]
+                # A new weapon goes straight into your hands to try out, and a
+                # + card's comes already improved once.
+                self.owned[i] = True
+                if plus:
+                    boost[i] += card["step"]
+                self.ammo[i] = float(self.magazine[i])
+                self.weapon = i
         else:
             stat = card["stat"]
-            self.stats[stat] = stepped(card, self.stats[stat])
+            before = self.stats[stat]
+            self.stats[stat] = stepped(card, before, plus)
             if stat == "max_health":
-                self.health = min(self.stats["max_health"], self.health + card["step"])
+                self.health = min(self.stats["max_health"], self.health + self.stats[stat] - before)
             elif stat == "shields":
                 self.shields += 1  # a new shield arrives charged
+                if plus:
+                    self.health = self.stats["max_health"]
         self.say("Release v0.%d.0 shipped with %s. More bots incoming." % (self.wave + 1, name))
         if self.wave % 3 == 2:
-            self.bots.append(Bot("agent", random.uniform(-SPAWN_ARC * 0.6, SPAWN_ARC * 0.6)))
+            self.bots.append(self.new_bot("agent", random.uniform(-SPAWN_ARC * 0.6, SPAWN_ARC * 0.6)))
         self.state = "play"
 
     def switch_weapon(self, step):
@@ -655,11 +720,20 @@ class Game:
         bot.flash = 0.12
         if bot.hp > 0:
             return
-        points = bot.spec["points"]
+        points = self.points(bot)
         self.score += points
         self.popups.append([bot.azimuth, bot.distance, "+%d" % points, 0.8, TEXT])
         if random.random() < self.stats["pickup_chance"]:
-            self.pickups.append(Pickup(self.pickup_kind(), bot.azimuth, max(bot.distance, 5.0)))
+            distance = min(max(bot.distance, PICKUP_DISTANCE[0]), PICKUP_DISTANCE[1])
+            self.pickups.append(Pickup(self.pickup_kind(), self.pickup_azimuth(), distance))
+
+    def pickup_azimuth(self):
+        """Off to one side of your aim, so your next shot doesn't take a pickup
+        before you've seen it, but never wider than bots come from."""
+        offset = random.uniform(*PICKUP_OFFSET) * random.choice((-1, 1))
+        if abs(self.aim.yaw + offset) > SPAWN_ARC:
+            offset = -offset
+        return self.aim.yaw + offset
 
     def pickup_kind(self):
         kinds = [k for k in PICKUPS if k != "cache" or self.stats["shields"] > 0]
@@ -684,7 +758,7 @@ class Game:
         else:
             # rm -rf: every bot on the field, bar the rogue agent, which had backups.
             gone = [b for b in self.bots if b.hp > 0 and b.kind != "agent"]
-            points = sum(b.spec["points"] for b in gone)
+            points = sum(self.points(b) for b in gone)
             for bot in gone:
                 bot.hp = 0
             self.score += points
@@ -895,7 +969,7 @@ class Game:
                 screen.pen = TRACK
                 screen.rectangle(int(x - r), int(y + r + 3), int(2 * r), 2)
                 screen.pen = EVIL
-                screen.rectangle(int(x - r), int(y + r + 3), max(1, int(2 * r * max(bot.hp, 0) / spec["hp"])), 2)
+                screen.rectangle(int(x - r), int(y + r + 3), max(1, int(2 * r * max(bot.hp, 0) / bot.max_hp)), 2)
 
     def draw_head(self, bot, x, y, r, metal, t):
         """An evil bot head: metal, a dark visor and red eyes, with a feature
@@ -960,7 +1034,7 @@ class Game:
             screen.pen = RIVET
             for rx, ry in ((-0.85, -0.75), (0.85, -0.75), (-0.85, 0.75), (0.85, 0.75)):
                 screen.circle(int(x + rx * w), int(y + ry * h), max(1, int(r * 0.07)))
-            dents = int(4 * (1 - max(bot.hp, 0) / bot.spec["hp"]))
+            dents = int(4 * (1 - max(bot.hp, 0) / bot.max_hp))
             screen.pen = shade
             for k in range(dents):
                 dx = ((k * 37 + int(bot.phase * 10)) % 13 - 6) / 8.0
@@ -1204,9 +1278,8 @@ class Game:
         pulse = 0.5 + 0.5 * math.sin(time.ticks_ms() / 1000 * 4.0)
         return ((5, pen(WEAPONS[0]["rgb"], int(50 + 70 * pulse))), (2, WEAPON_PENS[0]))
 
-    def draw_pointer(self, x, chevron=0):
-        """A glowing arrow bobbing down at the button below the screen at x,
-        with a chevron over it for Left (-1) or Right (1)."""
+    def draw_pointer(self, x):
+        """A glowing arrow bobbing down at the button below the screen at x."""
         tip = HEIGHT - 4 + int(3 * math.sin(time.ticks_ms() / 1000 * 6.0))
         for stroke, p in self.glow_pens():
             screen.pen = p
@@ -1214,10 +1287,15 @@ class Game:
             for k in range(8):
                 screen.rectangle(x - k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
                 screen.rectangle(x + k - stroke // 2, tip - 4 - k - stroke // 2, stroke, stroke)
-            # The chevron's point sits on the side it names, over the shaft.
-            for k in range(9 if chevron else 0):
-                cx = x + chevron * (4 - abs(k - 4) * 2)
-                screen.rectangle(cx - stroke // 2, tip - 44 + k * 2 - stroke // 2, stroke, stroke)
+
+    def draw_mark(self, x, mark):
+        """A glowing mark from BUTTON_MARKS, bobbing right over the button
+        below the screen at x."""
+        base = HEIGHT - 6 + int(3 * math.sin(time.ticks_ms() / 1000 * 6.0))
+        for stroke, p in self.glow_pens():
+            screen.pen = p
+            for px, py in BUTTON_MARKS[mark]:
+                screen.rectangle(int(x + px) - stroke // 2, int(base + py) - stroke // 2, stroke, stroke)
 
     def draw_enter_hint(self):
         """A glowing return arrow, like the one printed on the badge, in the
@@ -1273,14 +1351,17 @@ class Game:
         centred("v0.%d.0 shipped! Pick an upgrade" % (self.wave + 1), 8)
         width, gap, top = 92, 5, 32
         left = 8
-        for i, card in enumerate(self.offers):
-            name, flavor, effect, change = self.card_text(card)
+        for i, (card, plus) in enumerate(self.offers):
+            name, flavor, effect, change = self.card_text(card, plus)
             x = left + i * (width + gap)
             chosen = i == self.card
             y = top - (4 if chosen else 0)
-            # Weapon cards wear their weapon's colour.
+            # Weapon cards wear their weapon's colour, and + cards a gold frame.
             accent = WEAPON_PENS[card["weapon"]] if "weapon" in card else WEAPON_PENS[0]
-            screen.pen = accent if chosen else TRACK
+            if plus:
+                screen.pen = PLUS_PEN if chosen else PLUS_DIM
+            else:
+                screen.pen = accent if chosen else TRACK
             screen.rectangle(x - 2, y - 2, width + 4, 158)
             screen.pen = pen((10, 14, 30))
             screen.rectangle(x, y, width, 154)
@@ -1307,9 +1388,9 @@ class Game:
             screen.pen = accent if chosen else MUTED
             screen.text(change, x + 5, y + 138)
         self.draw_side_tab(UP_Y, "settings")
-        self.draw_pointer(LEFT_X, -1)
-        self.draw_pointer(RIGHT_X, 1)
-        self.draw_enter_hint()
+        self.draw_mark(LEFT_X, "left")
+        self.draw_mark(RIGHT_X, "right")
+        self.draw_mark(ENTER_X, "check")
 
     def draw_behind_settings(self):
         if self.settings_from in ("play", "paused", "upgrade"):
@@ -1406,7 +1487,7 @@ class Game:
             if pressed(RIGHT):
                 self.card = (self.card + 1) % len(self.offers)
             if pressed(SELECT):
-                self.take_upgrade(self.offers[self.card])
+                self.take_upgrade(*self.offers[self.card])
             self.draw_game()
             if self.state == "upgrade":
                 self.draw_upgrades()

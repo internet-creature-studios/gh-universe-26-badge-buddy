@@ -9,6 +9,24 @@ number is 0, anything can change between versions:
 Each release is tagged `repo-defender-v<version>`, because this repo holds
 several apps.
 
+## 0.3.0: + cards, Friday Deploy, and pickups you can see
+
+- **+ cards.** Any card offered has a 15% chance of being its + version, in a
+  gold frame, which does twice as much:
+  - stat cards double their increase
+  - a weapon you have gets boosted twice
+  - a new weapon arrives already boosted once
+  - Two-Factor Auth+ adds a shield and fully heals you
+- **Friday Deploy**, a new card: +10% score, but bots get +10% health and
+  speed (+20% each for Friday Deploy+). It stacks.
+- **Pickups land off to one side** of where you're aiming, 12° to 19° away and
+  within reach, instead of where the bot was. Your next shot no longer takes
+  them before you've seen them.
+- **The upgrade screen marks its buttons** with a glowing, bobbing `<`, `>` and
+  ✓ right over Left, Right and enter, in place of the arrows and `↩`.
+- **The self-test** grows to 34 checks, including one that every card's text
+  fits in the badge's own fonts.
+
 ## 0.2.0: stats, upgrades, weapon cards and new bots
 
 - **Bots with their own behaviours**, in place of colour-coded ones. They're

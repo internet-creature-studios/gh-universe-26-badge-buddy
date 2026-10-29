@@ -116,6 +116,90 @@ def selftest():
         order.append(g.weapon)
     check("Left and Right skip weapons you don't have", order == [2, 0, 2], str(order))
 
+    # + cards.
+    plus = total = 0
+    for i in range(300):
+        g.offer_upgrades()
+        total += len(g.offers)
+        plus += sum(1 for u, p in g.offers if p)
+    check("about 15% of cards are +", 0.11 < plus / total < 0.19, "%d of %d" % (plus, total))
+    card = {u["stat"]: u for u in UPGRADES}
+    fresh(g)
+    g.take_upgrade(card["fire_rate"], True)
+    g.take_upgrade(card["reload"], True)
+    g.health = 50
+    g.take_upgrade(card["max_health"], True)
+    check("+ stat cards do twice as much", abs(g.stats["fire_rate"] - 1.3) < 0.001 and abs(g.stats["reload"] - 0.84) < 0.001
+          and g.stats["max_health"] == 140 and g.health == 90,
+          "fire rate %.2f, reload %.2fs, health %d of %d" % (g.stats["fire_rate"], g.stats["reload"], g.health,
+                                                           g.stats["max_health"]))
+    g.health = 30
+    g.take_upgrade(card["shields"], True)
+    check("Two-Factor Auth+ adds a shield and fully heals", g.stats["shields"] == 1 and g.shields == 1 and g.health == 140,
+          "shields %d, health %d" % (g.shields, g.health))
+    fresh(g)
+    name = g.card_text(cards[1], True)[0]
+    g.take_upgrade(cards[1], True)
+    check("Code Review+ gives REVIEW already at 7 damage", name == "Code Review+" and g.owned[1] and g.damage[1] == 7
+          and g.ammo[1] == 4, "%s: damage %d, ammo %.0f" % (name, g.damage[1], g.ammo[1]))
+    g.take_upgrade(cards[1], True)
+    g.take_upgrade(cards[2], True)
+    pellets = g.pellets[2]
+    g.take_upgrade(cards[2], True)
+    g.take_upgrade(cards[0], True)
+    check("+ weapon cards on a weapon you have boost it twice", g.damage[1] == 11 and pellets == 6 and g.pellets[2] == 8
+          and g.magazine[0] == 50, "damage %d, pellets %d then %d, magazine %d" % (g.damage[1], pellets, g.pellets[2],
+                                                                                   g.magazine[0]))
+
+    fresh(g)
+    g.take_upgrade(card["risk"])
+    bot = g.new_bot("bug", 0.0)
+    hp, speed = bot.max_hp, bot.speed
+    bot.hp = 0.01
+    g.hit(Shot(WEAPONS[0], 0, 0.0, 1), bot)
+    score = g.score
+    g.take_upgrade(card["risk"], True)
+    bot = g.new_bot("bug", 0.0)
+    bot.hp = 0.01
+    g.hit(Shot(WEAPONS[0], 0, 0.0, 1), bot)
+    check("Friday Deploy: +10% score, and bots +10% health and speed (+20% for +)",
+          abs(hp - 4.4) < 0.01 and abs(speed - 4.6 * 1.1) < 0.01 and score == 22 and g.score - score == 26,
+          "hp %.2f, speed %.2f, a bug scores %d then %d" % (hp, speed, score, g.score - score))
+
+    fresh(g)
+    g.stats["pickup_chance"] = 1.0
+    spots = []
+    for i in range(30):
+        g.aim.yaw = (0.0, 25.0, -25.0)[i % 3]
+        bot = Bot("bug", g.aim.yaw)
+        bot.distance = 3.0
+        bot.hp = 0.01
+        g.hit(Shot(WEAPONS[0], 0, g.aim.yaw, 1), bot)
+        spots.append((g.pickups[-1].azimuth - g.aim.yaw, g.pickups[-1].azimuth, g.pickups[-1].distance))
+    g.aim.yaw = 0.0
+    check("pickups land 12 to 19 degrees from your aim, within reach",
+          all(12 <= abs(off) <= 19 and abs(az) <= SPAWN_ARC and 7 <= d <= 13 for off, az, d in spots),
+          "offsets %.1f to %.1f" % (min(abs(o) for o, a, d in spots), max(abs(o) for o, a, d in spots)))
+
+    # Every card's text fits above the change line, in the badge's own fonts
+    # (the layout in draw_upgrades).
+    tallest = (0, "")
+    for owned in (False, True):
+        g.owned = [True, owned, owned]
+        for c in UPGRADES + WEAPON_CARDS:
+            for p in (False, True):
+                name, flavor, effect, change = g.card_text(c, p)
+                screen.font = font.salty
+                height = 6 + 15 * len(wrap(name, 82)) + 4
+                screen.font = font.winds
+                height += 12 * len(wrap(flavor, 82)) + 5 + 12 * len(wrap(effect, 82))
+                wide = screen.measure_text(change)[0]
+                if height > tallest[0]:
+                    tallest = (height, name)
+                if wide > 82:
+                    tallest = (999, change)
+    check("every card's text fits", tallest[0] <= 136, "tallest %d of 136 px: %s" % tallest)
+
     fresh(g, weapon=1)
     box = Bot("node_modules", 0.0)
     box.distance = 12.0
@@ -178,7 +262,7 @@ def selftest():
     fresh(g)
     g.clock = WAVE_SECONDS - 0.01
     g.update(0.02)
-    names = [g.card_text(u)[0] for u in g.offers]
+    names = [g.card_text(*u)[0] for u in g.offers]
     check("a finished wave offers 3 different upgrades", g.state == "upgrade" and len(set(names)) == 3, str(names))
     g.take_upgrade([u for u in UPGRADES if u["name"] == "Automated PR Review"][0])
     check("Automated PR Review makes reloads 15% faster", abs(g.stats["reload"] - 1.02) < 0.001,
@@ -187,7 +271,7 @@ def selftest():
     offered = set()
     for i in range(30):
         g.offer_upgrades()
-        offered.update(u.get("stat", "weapon") for u in g.offers)
+        offered.update(u.get("stat", "weapon") for u, plus in g.offers)
     check("no shield upgrade once at 3 shields, and weapon cards turn up", "shields" not in offered and "weapon" in offered,
           str(sorted(offered)))
 
@@ -209,7 +293,7 @@ def selftest():
         for state in ("title", "settings", "paused", "upgrade", "upgrade", "over"):
             g.state = state
             if state == "upgrade":
-                g.offers = list(WEAPON_CARDS)
+                g.offers = [(c, p) for c, p in zip(WEAPON_CARDS, (False, True, True))]
             g.draw_game()
             if state == "title":
                 g.draw_card(["REPO DEFENDER", "a", "b"], WEAPON_PENS[0], top=6, left=8, width=WIDTH - 40)

@@ -30,8 +30,9 @@ branch. It plays seated.
   | Hallucination | sways side to side, medium speed | 2 | a flickering dome with mismatched eyes and a "?" |
   | Rogue agent | slow boss, every third release | 30 | horns, three eyes, and a terminal for a mouth, prompt blinking |
 
-- **Pickups** bob up and down where a destroyed bot was. Shoot one within 4.5 s
-  to collect it:
+- **Pickups** sometimes drop when you destroy a bot. One lands 12° to 19° to the
+  side of where you're aiming, so you see it before you shoot it, and bobs up
+  and down. Shoot it within 4.5 s to collect it:
   - **Pizza**: +25 health.
   - **Coffee**: overdrive, double fire rate for 5 s.
   - **Cache Hit**: a shield back. It only drops once you have shields.
@@ -45,10 +46,21 @@ branch. It plays seated.
 
 ## Upgrades
 
-![The upgrade cards: a new weapon, a weapon boost and a stat](preview/cards.png)
+![The upgrade cards: a + new weapon, a weapon boost and Friday Deploy](preview/cards.png)
 
 Each release offers three different cards, drawn from the stat cards and the
-weapon cards together. Every card shows what it changes, now and after.
+weapon cards together. Every card shows what it changes, now and after. The
+screen marks Left, Right and enter with a glowing `<`, `>` and ✓ right over each
+button.
+
+**+ cards.** Any card offered has a 15% chance (`PLUS_CHANCE`) of being its +
+version, such as Copilot+, in a gold frame. A + card does twice as much:
+
+- A stat card's increase is doubled, such as +30% fire rate or +40 max health.
+- A weapon card for a weapon you have boosts it twice.
+- A weapon card for a new weapon gives it to you already boosted once.
+- **Two-Factor Auth+** adds one shield, like the plain card, and fully heals
+  you.
 
 **Weapon cards** give you a weapon you don't have yet, straight into your hands.
 Once you have it, the same weapon's card improves it instead:
@@ -71,9 +83,12 @@ Once you have it, the same weapon's card improves it instead:
 | Automated PR Review | Reloads approve themselves. LGTM! | 15% faster reloads (from 1.2 s) |
 | Branch Protection | main has been hitting the gym. | +20 max health (from 100), and heals 20 |
 | Two-Factor Auth | Bots never have their phone on them. | +1 recharging shield, up to 3 |
+| Friday Deploy | What could possibly go wrong? | +10% score, but bots get +10% health and speed |
 
 Damage per pellet is `(weapon damage + flat) × (1 + increased)`. A shield comes
-back 8 s after a bot last reached you, then one every 8 s.
+back 8 s after a bot last reached you, then one every 8 s. Friday Deploy is a
+gamble: it stacks with every pick (+20% each for the + card), and makes
+every bot that arrives afterwards tougher and faster.
 
 ## Buttons and screens
 
@@ -97,8 +112,9 @@ There's more on screen:
 
 - **The splash** shows the studio's logo, a line at a time, then the pink `:3`.
 - **The title and menus** point at the buttons they use: a glowing copy of the
-  printed `↩` and an arrow for enter, and chevrons for Left and Right. The
-  positions come from [docs/button_positions.json](../../docs/button_positions.json).
+  printed `↩` and an arrow for enter. The upgrade screen puts a `<`, `>` and ✓
+  right over Left, Right and enter. The positions come from
+  [docs/button_positions.json](../../docs/button_positions.json).
 - **The best score and settings** are kept in `/state/repo_defender.json`.
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
@@ -128,17 +144,21 @@ Tuning knobs, at the top of the app:
 - **Pace:** `WAVE_SECONDS`, and the spawn mix and curve in `Game.spawn` and
   `Game.update`.
 - **Bots and weapons:** the `BOTS` and `WEAPONS` tables, and `HOLSTER_REFILL`.
-- **Progression:** `BASE_STATS`, `UPGRADES`, `WEAPON_CARDS`, `PICKUPS`, and the
-  shield and pickup timings.
+- **Progression:** `BASE_STATS`, `UPGRADES`, `WEAPON_CARDS`, `PLUS_CHANCE`,
+  `PICKUPS`, `PICKUP_OFFSET`, and the shield and pickup timings.
 
 ## Testing the rules on the badge
 
 [`selftest.py`](selftest.py) runs the game's own code on the badge with its
-run loop swapped for 26 checks. They cover:
+run loop swapped for 34 checks. They cover:
 
 - firing, reload timing, early reloads and holster refills
 - starting with LINT, each weapon card unlocking or boosting its weapon, and
   Left and Right skipping weapons you don't have
+- + cards: how often they come up, and what each kind does
+- Friday Deploy's score and bot toughness
+- where pickups land
+- that every card's text fits, measured in the badge's own fonts
 - each bot's health, and REVIEW piercing through a line
 - every pickup, including rm -rf sparing the boss
 - shields stopping a bot and recharging
@@ -146,9 +166,9 @@ run loop swapped for 26 checks. They cover:
 - Reset origin, and which way tilt turns
 - every screen and bot drawing
 
-Then it measures the frame rate of a busy scene. All 26 checks pass. The busy
-scene, with 12 bots and 4 pickups at once, runs at about 24 fps; normal play
-has far fewer on screen. How to run it is at the top of the file.
+Then it measures the frame rate of a busy scene. All 34 checks pass. The busy
+scene, with 12 bots and 4 pickups at once, runs at about 22 to 24 fps; normal
+play has far fewer on screen. How to run it is at the top of the file.
 
 ## The menu icon
 
