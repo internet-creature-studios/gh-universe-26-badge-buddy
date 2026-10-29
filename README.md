@@ -1,16 +1,14 @@
-# GitHub Universe 2026 badge studio
+# GitHub Universe '26 Badge Buddy
 
-Notes, tools and an example for building your own apps for the GitHub
-Universe 2026 badge, a Pimoroni Badger 2350 running MonaOS. It's written so an
-AI coding agent (or a person) can start building on the badge without
-rediscovering how it works:
+Tools, notes, and a working example for building your own apps for the GitHub
+Universe 2026 badge — a Pimoroni Badger 2350 running MonaOS.
+It's written so you (or your AI) can start building right away, without
+rediscovering how the badge works:
 
-- how to get code onto it,
-- how to recover it,
-- what its API does,
-- what things cost.
-
-![The example app](examples/internet-creature-studios/preview/hills_layers.png)
+* [how to get code onto it](docs/workflow.md)
+* [how to recover it if something goes wrong](docs/workflow.md#reset-and-recovery)
+* [what it can do (the API)](docs/api.md)
+* [what things cost (memory, speed, battery)](docs/performance.md)
 
 **Examples:**
 
@@ -18,9 +16,15 @@ rediscovering how it works:
   studio's logo over its site's hills, drawn live as parallax layers that race
   left or right as you tilt the badge, at about 30 fps. It adds a `:3` menu
   icon with a blinking selection animation.
+
+  ![The studio's logo over its hills](examples/internet-creature-studios/preview/hills.png)
+
 - [Repo Defender](examples/repo-defender): defend your main branch from rogue
-  AI bots. Turn to aim (the gyro tracks you), weapons fire automatically, and
-  Left and Right switch them. It's playable seated.
+  AI bots, neon wireframe creatures designed with Grok. Turn to aim (the gyro
+  tracks you), weapons fire automatically, and you win more weapons and
+  upgrades every release. It's playable seated.
+
+  ![Repo Defender in play, captured from the badge](examples/repo-defender/preview/gameplay.png)
 
 ## Start here
 
@@ -60,8 +64,10 @@ the back once.
 badge/      mirrors the badge's /system drive: what this repo installs
 stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made
+design/     design proposals and the scripts that render them
 tools/      deploy.py: safe install with verification; menu_icon.py: menu icons;
-            locate_buttons.py: where the buttons sit beside the screen
+            locate_buttons.py: where the buttons sit beside the screen;
+            raw2png.py: screen captures as PNGs
 docs/       what's known about the badge
 ```
 

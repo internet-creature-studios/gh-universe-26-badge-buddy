@@ -8,7 +8,7 @@ Assets stay local; this app does not connect to the network or save state.
 
 The hills are four depth bands of the site's terrain, each baked into a strip
 that wraps seamlessly (examples/internet-creature-studios/render_layers.py in
-the badge studio repo). Every drawn frame repaints
+the gh-universe-26-badge-buddy repo). Every drawn frame repaints
 the sky behind the far crests, then the strips far to near, each slid by its
 own parallax speed, then the part of the logo the hills pass behind. The sky
 above never changes, and the screen keeps its contents between refreshes, so
