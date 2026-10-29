@@ -85,20 +85,31 @@ WEAPONS = [
 # reload times.
 HOLSTER_REFILL = 5.0
 
-# Bots: all evil heads, each kind with its own way of coming at you and a
-# feature or two to tell it by. hit: health lost on reaching you. weave:
-# degrees it sways either side. height: where its middle floats. rgb: its
-# metal.
+# Bots: neon wireframe creatures (see "Bot models" below), each kind with its
+# own way of coming at you. hit: health lost on reaching you. weave: degrees
+# it sways either side. height: where its middle floats. rgb: its neon.
 BOTS = {
     "bug": dict(name="A bug", hp=4, speed=4.6, weave=0.0, size=0.32, height=0.5, points=20, hit=10,
-                quip="made it into prod", rgb=(120, 70, 78)),
+                quip="made it into prod", rgb=(244, 255, 58)),
     "node_modules": dict(name="node_modules", hp=15, speed=1.5, weave=0.0, size=0.55, height=0.6, points=50, hit=20,
-                         quip="installed 40,000 packages into main", rgb=(110, 94, 76)),
+                         quip="installed 40,000 packages into main", rgb=(46, 246, 255)),
     "hallucination": dict(name="A hallucination", hp=2, speed=2.6, weave=11.0, size=0.36, height=0.85, points=15, hit=8,
-                          quip="added a package that doesn't exist", rgb=(96, 92, 138)),
+                          quip="added a package that doesn't exist", rgb=(255, 61, 242)),
     "agent": dict(name="The rogue agent", hp=30, speed=1.3, weave=4.0, size=0.85, height=0.95, points=150, hit=35,
-                  quip="rewrote the whole repo overnight", rgb=(104, 58, 116)),
+                  quip="rewrote the whole repo overnight", rgb=(255, 51, 85)),
 }
+# Each bot is drawn as a bright core line over a wider, dimmer glow, these
+# many pixels wide whatever its size, so each model is built ahead at a
+# ladder of radii MODEL_STEP apart (MODEL_SIZES, px) and scaled to the
+# nearest. Anything smaller than the first is drawn as a dot. A shape costs
+# about the same to draw however small, so the first SPRITE_SIZES are also
+# drawn once into images, which cost far less to scale onto the screen.
+NEON_CORE = 1.3
+NEON_GLOW = 3.6
+GLOW_DIM = 0.35
+MODEL_STEP = 1.5
+MODEL_SIZES = tuple(5.0 * MODEL_STEP ** i for i in range(8))
+SPRITE_SIZES = 5
 
 # --- Upgrades ----------------------------------------------------------------
 
@@ -307,14 +318,8 @@ PANEL = pen((0, 0, 0), 170)
 WEAPON_PENS = [pen(w["rgb"]) for w in WEAPONS]
 WEAPON_DIM = [pen(dim(w["rgb"], 0.45)) for w in WEAPONS]
 AIM_LINE = [pen(dim(w["rgb"], 0.25)) for w in WEAPONS]
-# Every bot shares the evil red eyes; each kind has its own metal.
-BOT_METAL = {kind: pen(b["rgb"]) for kind, b in BOTS.items()}
-BOT_SHADE = {kind: pen(dim(b["rgb"], 0.6)) for kind, b in BOTS.items()}
-EVIL = pen((255, 50, 60))
-EVIL_GLOW = pen((255, 50, 60), 90)
-FANG = pen((235, 235, 225))
-RIVET = pen((185, 170, 150))
-TERMINAL = WEAPON_PENS[0]
+BOT_PENS = {kind: pen(b["rgb"]) for kind, b in BOTS.items()}
+BOT_GLOW = {kind: pen(dim(b["rgb"], GLOW_DIM)) for kind, b in BOTS.items()}
 PICKUP_PENS = {kind: pen(p["rgb"]) for kind, p in PICKUPS.items()}
 PLUS_PEN = pen((255, 205, 70))
 PLUS_DIM = pen((125, 98, 35))
@@ -396,6 +401,238 @@ def stat_text(stat, value):
     if stat == "reload":
         return "%.2fs" % value
     return "%d" % value
+
+
+# --- Bot models ----------------------------------------------------------------
+
+# Neon wireframe creatures, from the designs in design/enemies: 3D models in
+# units where the body fits a radius-1 sphere (the bot's size scales it), with
+# y up and -z toward you. Each takes a frame number, for its animation or, for
+# node_modules, how battered it is.
+
+
+class Wireframe:
+    """A 3D line model: points, the edges between them, and its eyes."""
+
+    def __init__(self):
+        self.points = []
+        self.edges = []
+        self.eyes = []
+
+    def strip(self, points, closed=True, joined=True):
+        """Adds points, each joined to the next unless joined is False, and
+        returns the index of the first."""
+        start = len(self.points)
+        self.points += points
+        if joined:
+            n = len(points)
+            for i in range(n if closed else n - 1):
+                self.edges.append((start + i, start + (i + 1) % n))
+        return start
+
+    def rungs(self, a, b, n):
+        """Joins each of the n points from a to its match from b."""
+        for i in range(n):
+            self.edges.append((a + i, b + i))
+
+    def fan(self, a, n, apex):
+        """Joins each of the n points from a to one more point."""
+        top = self.strip([apex], joined=False)
+        for i in range(n):
+            self.edges.append((a + i, top))
+
+    def line(self, p, q):
+        self.strip([p, q], closed=False)
+
+
+def ring(cx, cy, cz, rx, n, rz=None, ry=None):
+    """n points around (cx, cy, cz): a level ring rx across and rz deep, or
+    with ry, an upright one facing you, ry tall."""
+    points = []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        if ry is None:
+            points.append((cx + rx * math.cos(a), cy, cz + (rz or rx) * math.sin(a)))
+        else:
+            points.append((cx + rx * math.cos(a), cy + ry * math.sin(a), cz))
+    return points
+
+
+def skitter(frame):
+    """The bug: a six-legged mite. Each frame lifts the other three legs."""
+    m = Wireframe()
+    # Its body: two stacked octagons and a peak.
+    low = m.strip(ring(0, 0.05, 0, 0.7, 8, rz=0.8))
+    high = m.strip(ring(0, 0.45, 0, 0.45, 8))
+    m.rungs(low, high, 8)
+    m.fan(high, 8, (0, 0.65, 0))
+    # A wedge of a head, and mandibles.
+    head = m.strip([(-0.25, 0.15, -0.55), (0.25, 0.15, -0.55), (0, 0.0, -0.85)])
+    m.edges += [(low + 6, head), (low + 6, head + 1), (low + 5, head), (low + 7, head + 1)]
+    m.line((-0.1, 0.0, -0.85), (-0.25, -0.15, -1.0))
+    m.line((0.1, 0.0, -0.85), (0.25, -0.15, -1.0))
+    # Six jointed legs, scuttling.
+    for k, z in enumerate((-0.35, 0, 0.35)):
+        for side in (-1, 1):
+            lift = 0.15 if (k + (1 if side > 0 else 0) + frame) % 2 else 0.0
+            knee = (side * 0.95, 0.45 + lift, z * 1.4)
+            m.line((side * 0.5, 0.1, z), knee)
+            m.line(knee, (side * 1.25, -0.5 + lift, z * 1.8 - lift))
+    m.eyes = [(-0.12, 0.18, -0.6), (0.12, 0.18, -0.6)]
+    return m
+
+
+def hoardshell(frame):
+    """node_modules: a domed, plated pillbug. frame (0 to 3) is how many
+    layers of its armour have dropped off: the skirt, the cap and top ring,
+    then the next ring."""
+    m = Wireframe()
+    rings = 4 - max(0, frame - 1)  # the dome's rings still on
+    rows = []
+    for j, ph in enumerate((0, 0.35, 0.7, 1.0)):
+        rows.append(m.strip(ring(0, -0.3 + 0.75 * math.sin(ph * 1.35), 0, math.cos(ph * 1.2), 10), joined=j < rings))
+    for j in range(rings - 1):
+        m.rungs(rows[j], rows[j + 1], 10)
+    if frame < 2:
+        m.fan(rows[3], 10, (0, 0.55, 0))
+    skirt = m.strip(ring(0, -0.45, 0, 1.05, 10), joined=frame < 1)
+    if frame < 1:
+        m.rungs(rows[0], skirt, 10)
+    head = m.strip([(-0.3, -0.4, -0.95), (0.3, -0.4, -0.95), (0.3, 0.0, -1.0), (-0.3, 0.0, -1.0)])
+    m.edges += [(head, rows[0] + 7), (head + 1, rows[0] + 8), (head + 2, rows[0] + 8), (head + 3, rows[0] + 7)]
+    for i in (1, 3, 6, 8):  # stubby legs
+        x, y, z = m.points[skirt + i]
+        m.line((x, y, z), (x * 1.05, -0.8, z * 1.05))
+    m.eyes = [(-0.15, -0.2, -1.0), (0.15, -0.2, -1.0)]
+    return m
+
+
+def mirage(frame):
+    """The hallucination: a drifting jellyfish with mismatched eyes. Each
+    frame moves the ripple along its tentacles."""
+    m = Wireframe()
+    above = None
+    for y, r in ((0.0, 0.85), (0.3, 0.75), (0.55, 0.5), (0.7, 0.2)):
+        row = m.strip(ring(0, y, 0, r, 9))
+        if above is not None:
+            m.rungs(above, row, 9)
+        above = row
+    for i in range(0, 9, 2):
+        a = 2 * math.pi * i / 9
+        x0, z0 = 0.8 * math.cos(a), 0.8 * math.sin(a)
+        m.strip([(x0 * (1 - 0.1 * k) + 0.15 * math.sin(k * 1.7 + i + frame * 2.1), -0.25 * k, z0 * (1 - 0.1 * k))
+                 for k in range(5)], closed=False)
+    m.eyes = [(-0.3, 0.3, -0.68), (0.22, 0.38, -0.62)]
+    return m
+
+
+def overmind(frame):
+    """The rogue agent: a horned wireframe dragon, wings spread. Frame 1 is
+    the down beat of its wings."""
+    m = Wireframe()
+    head = m.strip([(-0.22, 0.55, -0.35), (0.22, 0.55, -0.35), (0.15, 0.75, -0.25), (-0.15, 0.75, -0.25)])
+    snout = m.strip([(-0.1, 0.5, -0.7), (0.1, 0.5, -0.7)], joined=False)
+    jaw = m.strip([(0, 0.32, -0.62)], joined=False)
+    m.edges += [(snout, snout + 1), (head, snout), (head + 1, snout + 1), (head + 3, snout), (head + 2, snout + 1),
+                (head, jaw), (head + 1, jaw), (snout, jaw), (snout + 1, jaw)]
+    m.line((-0.15, 0.75, -0.25), (-0.4, 1.1, 0.0))  # horns
+    m.line((0.15, 0.75, -0.25), (0.4, 1.1, 0.0))
+    neck = m.strip(ring(0, 0.35, -0.1, 0.18, 4, ry=0.15))
+    m.edges += [(head, neck + 2), (head + 1, neck)]
+    body = m.strip(ring(0, 0.1, 0.25, 0.32, 4, ry=0.26))
+    m.rungs(neck, body, 4)
+    tail = m.strip([(0, -0.15, 0.5), (0.3, -0.35, 0.8), (0.55, -0.45, 1.0), (0.75, -0.35, 1.1)], closed=False)
+    m.edges.append((body + 3, tail))
+    m.strip([(0.75, -0.35, 1.1), (0.9, -0.25, 1.05), (0.85, -0.5, 1.15)])  # the tail's spade
+    beat = -0.3 * frame
+    for side in (-1, 1):
+        shoulder = (side * 0.3, 0.25, 0.15)
+        elbow = (side * 0.8, 0.85 + beat * 0.7, 0.3)
+        tip = (side * 1.45, 1.0 + beat, 0.4)
+        fingers = ((side * 1.3, 0.2 + beat * 0.8, 0.45), (side * 0.85, -0.05 + beat * 0.5, 0.4))
+        m.line(shoulder, elbow)
+        m.line(elbow, tip)
+        for finger in fingers:
+            m.line(elbow, finger)
+        m.strip([tip, fingers[0], fingers[1], (side * 0.3, 0.0, 0.3)], closed=False)
+    m.eyes = [(-0.13, 0.65, -0.42), (0.13, 0.65, -0.42)]
+    return m
+
+
+def flatten(model, yaw, pitch=0.15):
+    """The model as the game shows it: turned yaw radians, tipped pitch
+    toward you, with a little perspective. Its points and eyes come back in
+    units of the bot's radius, x right and y down."""
+    cy, sy, cp, sp = math.cos(yaw), math.sin(yaw), math.cos(pitch), math.sin(pitch)
+
+    def seen(p):
+        x, y, z = p
+        x, z = x * cy - z * sy, x * sy + z * cy
+        y, z = y * cp - z * sp, y * sp + z * cp
+        k = 4.0 / (4.0 + z)
+        return (x * k, -y * k)
+
+    return [seen(p) for p in model.points], model.edges, [seen(p) for p in model.eyes]
+
+
+# Each kind's model, how many frames it has, and how far it's turned to show
+# its depth: they face a little to the right, mirrored when on the right.
+MODELS = {
+    "bug": (skitter, 2, 0.5),
+    "node_modules": (hoardshell, 4, 0.5),
+    "hallucination": (mirage, 3, 0.5),
+    "agent": (overmind, 2, 0.35),
+}
+FLAT = {kind: [flatten(build(f), yaw) for f in range(frames)] for kind, (build, frames, yaw) in MODELS.items()}
+
+
+LOG_STEP = math.log(MODEL_STEP)
+SIZE_ROUNDING = math.sqrt(MODEL_STEP)
+
+
+def model_size(r):
+    """The index of the MODEL_SIZES to draw something r px in radius with
+    (the nearest, as a ratio), or None if it's smaller than them all."""
+    r *= SIZE_ROUNDING
+    if r < MODEL_SIZES[0]:
+        return None
+    return min(len(MODEL_SIZES) - 1, int(math.log(r / MODEL_SIZES[0]) / LOG_STEP))
+
+
+def neon(points, edges, size):
+    """A flattened model's glow and core lines, as two shapes whose lines
+    are NEON_GLOW and NEON_CORE px wide when it's drawn size px in radius."""
+    def lines(width):
+        w = width / size
+        return shape.combine([shape.line(points[a][0], points[a][1], points[b][0], points[b][1], w) for a, b in edges])
+    return lines(NEON_GLOW), lines(NEON_CORE)
+
+
+def bake(kind, points, eyes, glow, core, size, facing):
+    """A model drawn into an image, antialiased, size px in radius and facing
+    right (1) or left (-1). Returns the image and its left, top, width and
+    height from the bot's middle, in units of the bot's radius, so it can be
+    scaled to any radius."""
+    pad = NEON_GLOW / size  # room for the glow
+    xs = [facing * x for x, y in points]
+    ys = [y for x, y in points]
+    left, top = min(xs) - pad, min(ys) - pad
+    w = int((max(xs) + pad - left) * size) + 2
+    h = int((max(ys) + pad - top) * size) + 2
+    img = image(w, h)
+    img.antialias = image.X4
+    img.fill_rule = image.NON_ZERO
+    place = mat3().translate(-left * size, -top * size).scale(facing * size, size)
+    glow.transform = place
+    core.transform = place
+    img.pen = BOT_GLOW[kind]
+    img.shape(glow)
+    img.pen = BOT_PENS[kind]
+    img.shape(core)
+    img.pen = WHITE
+    for ex, ey in eyes:
+        img.circle(int((facing * ex - left) * size), int((ey - top) * size), max(1, int(size * 0.07)))
+    return img, left, top, w / size, h / size
 
 
 class Aim:
@@ -583,6 +820,18 @@ class Game:
         self.settings_from = "title"
         self.origin_note = 0.0
         self.best, self.settings = load_state()
+        # Bot models, by kind, frame and size, built ahead a few at a time on
+        # the splash and title screens, at the sizes each kind can appear:
+        # small ones first, as bots arrive small.
+        self.models = {kind: [[None] * len(MODEL_SIZES) for f in range(MODELS[kind][1])] for kind in BOTS}
+        self.unbuilt = []
+        for kind, spec in BOTS.items():
+            far = model_size(spec["size"] * FOCAL / SPAWN_DISTANCE) or 0
+            near = model_size(spec["size"] * FOCAL / REACH)
+            for size in range(far, near + 1):
+                for frame in range(MODELS[kind][1]):
+                    self.unbuilt.append((kind, frame, size))
+        self.unbuilt.sort(key=lambda key: -key[2])
         logo = image.load("assets/studio_logo.png")
         self.logo = logo  # the pieces are windows onto it
         self.logo_pieces = [
@@ -895,11 +1144,12 @@ class Game:
     def draw_world(self):
         view = self.view
         view.set(self.aim.yaw)
-        # Sky bands, then the floor.
-        band = HORIZON // 3
+        # Sky bands, then the floor. The screen isn't cleared between frames,
+        # so together they cover every row.
         for i, p in enumerate(SKY):
+            top = i * HORIZON // len(SKY)
             screen.pen = p
-            screen.rectangle(0, i * band, WIDTH, band + 1)
+            screen.rectangle(0, top, WIDTH, (i + 1) * HORIZON // len(SKY) - top)
         screen.pen = FLOOR
         screen.rectangle(0, HORIZON, WIDTH, HEIGHT - HORIZON)
 
@@ -941,9 +1191,45 @@ class Game:
         screen.pen = p
         screen.rectangle(2 if x < 0 else WIDTH - 32, int(min(HEIGHT - 26, max(HORIZON + 4, y))) - 4, 4, 8)
 
+    def model(self, kind, frame, size):
+        """A bot model at one of MODEL_SIZES, built now if it wasn't already:
+        its glow and core shapes and its eyes, or for the first SPRITE_SIZES,
+        only images of it facing right and left (see bake). Every model
+        kept is more for each garbage collection to look through."""
+        built = self.models[kind][frame][size]
+        if built is None:
+            points, edges, eyes = FLAT[kind][frame]
+            r = MODEL_SIZES[size]
+            glow, core = neon(points, edges, r)
+            if size < SPRITE_SIZES:
+                built = (None, None, eyes, [bake(kind, points, eyes, glow, core, r, facing) for facing in (1, -1)])
+            else:
+                built = (glow, core, eyes, None)
+            self.models[kind][frame][size] = built
+        return built
+
+    def build_models(self, budget_ms=None):
+        """Builds bot models ahead of need, for up to budget_ms, or all that
+        are left."""
+        start = time.ticks_ms()
+        while self.unbuilt and (budget_ms is None or time.ticks_diff(time.ticks_ms(), start) < budget_ms):
+            self.model(*self.unbuilt.pop())
+
+    def bot_frame(self, bot, t):
+        """Which of its model's frames a bot shows: bugs scuttle, node_modules
+        sheds armour as it's hit, hallucinations ripple, the agent's wings beat."""
+        if bot.kind == "bug":
+            return int(t * 12 + bot.phase) % 2
+        if bot.kind == "node_modules":
+            return min(3, int(4 * (1 - max(bot.hp, 0) / bot.max_hp)))
+        if bot.kind == "hallucination":
+            return (0, 1, 2, 1)[int(t * 6 + bot.phase) % 4]
+        return int(t * 2.5 + bot.phase) % 2
+
     def draw_bots(self):
         view = self.view
         t = time.ticks_ms() / 1000
+        screen.antialias = image.X2
         # Far to near, so near ones cover far ones.
         for bot in sorted(self.bots, key=lambda b: -b.distance):
             spec = bot.spec
@@ -953,113 +1239,50 @@ class Game:
             x, y, depth = at
             r = spec["size"] * FOCAL / depth
             if x + r < 0 or x - r > WIDTH:
-                self.edge_marker(x, y, EVIL)
+                self.edge_marker(x, y, BOT_PENS[bot.kind])
                 continue
-            metal = WHITE if bot.flash > 0 else BOT_METAL[bot.kind]
-            if r < 9:
-                # Far off, detail doesn't show: the head and its red eyes.
-                screen.pen = metal
-                screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
-                screen.pen = EVIL
-                screen.rectangle(int(x - r * 0.6), int(y - r * 0.35), int(r * 1.2), max(1, int(r * 0.3)))
+            size = model_size(r)
+            if size is None:
+                # Too far off for a model: a dot.
+                screen.pen = BOT_PENS[bot.kind]
+                screen.rectangle(int(x) - 1, int(y) - 1, 2, 2)
                 continue
-            self.draw_head(bot, x, y, r, metal, t)
-            # Health, for anything that takes more than a couple of hits.
-            if spec["hp"] > 2:
-                screen.pen = TRACK
-                screen.rectangle(int(x - r), int(y + r + 3), int(2 * r), 2)
-                screen.pen = EVIL
-                screen.rectangle(int(x - r), int(y + r + 3), max(1, int(2 * r * max(bot.hp, 0) / bot.max_hp)), 2)
+            frame = self.bot_frame(bot, t)
+            glow, core, eyes, sprites = self.models[bot.kind][frame][size] or self.model(bot.kind, frame, size)
+            # Models face a little to the right. Weavers turn the way they're
+            # swaying; the rest face the middle of the screen.
+            if spec["weave"]:
+                facing = 1 if math.cos(self.clock * 2.0 + bot.phase) > 0 else -1  # see Bot.update
+            else:
+                facing = 1 if x < WIDTH / 2 else -1
+            if sprites:
+                img, left, top, w, h = sprites[0 if facing > 0 else 1]
+                k = r * 1.15 if bot.flash > 0 else r  # a hit makes it pop
+                screen.blit(img, rect(int(x + left * k), int(y + top * k), int(w * k), int(h * k)))
+                self.draw_health(bot, x, y, r)
+                continue
+            # Up close: the shapes themselves, flashing white from a hit.
+            place = mat3().translate(x, y).scale(facing * r, r)
+            glow.transform = place
+            core.transform = place
+            screen.pen = BOT_PENS[bot.kind] if bot.flash > 0 else BOT_GLOW[bot.kind]
+            screen.shape(glow)
+            screen.pen = WHITE if bot.flash > 0 else BOT_PENS[bot.kind]
+            screen.shape(core)
+            screen.pen = WHITE
+            dot = max(1, int(r * 0.07))
+            for ex, ey in eyes:
+                screen.circle(int(x + facing * ex * r), int(y + ey * r), dot)
+            self.draw_health(bot, x, y, r)
+        screen.antialias = image.OFF
 
-    def draw_head(self, bot, x, y, r, metal, t):
-        """An evil bot head: metal, a dark visor and red eyes, with a feature
-        or two that tell each kind apart."""
-        kind = bot.kind
-        shade = BOT_SHADE[kind]
-        wide = 1.25 if kind == "node_modules" else 1.0  # node_modules hauls a wide head
-        w, h = r * wide, r * (0.85 if kind == "node_modules" else 1.0)
-        if kind == "agent":
-            # Horns.
-            screen.pen = shade
-            screen.triangle(int(x - w), int(y - h * 0.6), int(x - w * 0.55), int(y - h), int(x - w * 1.15), int(y - h * 1.6))
-            screen.triangle(int(x + w), int(y - h * 0.6), int(x + w * 0.55), int(y - h), int(x + w * 1.15), int(y - h * 1.6))
-        if kind in ("bug", "agent"):
-            # Antennae: two splayed for a bug, one tall for the agent.
-            screen.pen = shade
-            tips = ((x - w * 0.6, y - h * 1.6), (x + w * 0.6, y - h * 1.6)) if kind == "bug" else ((x, y - h * 1.55),)
-            for tx, ty in tips:
-                screen.line(x + (tx - x) * 0.3, y - h, tx, ty)
-                screen.pen = EVIL
-                screen.circle(int(tx), int(ty), max(2, int(r * 0.09)))
-                screen.pen = shade
-        screen.pen = metal
-        if kind == "hallucination":
-            # A rounded dome, flickering in and out.
-            if int(t * 8 + bot.phase) % 5 == 0 and bot.flash <= 0:
-                screen.pen = shade
-            screen.circle(int(x), int(y - h * 0.15), int(w * 0.95))
-            screen.rectangle(int(x - w * 0.95), int(y - h * 0.15), int(w * 1.9), int(h * 0.9))
-        else:
-            screen.rectangle(int(x - w), int(y - h), int(2 * w), int(2 * h))
-        # The visor and eyes.
-        screen.pen = BLACK
-        screen.rectangle(int(x - w * 0.78), int(y - h * 0.5), int(w * 1.56), int(h * 0.55))
-        eye = max(2, int(r * 0.2))
-        ey = int(y - h * 0.38)
-        screen.pen = EVIL_GLOW
-        screen.rectangle(int(x - w * 0.78), ey - 1, int(w * 1.56), eye + 2)
-        screen.pen = EVIL
-        if kind == "node_modules":
-            screen.rectangle(int(x - w * 0.6), ey, int(w * 1.2), eye)  # one long slit
-        elif kind == "agent":
-            for ex in (-0.5, 0.0, 0.5):  # three eyes
-                screen.rectangle(int(x + ex * w) - eye // 2, ey, eye, eye)
-        elif kind == "hallucination":
-            screen.circle(int(x - w * 0.35), ey + eye // 2, int(eye * 0.8))  # mismatched
-            screen.rectangle(int(x + w * 0.3), ey + eye // 3, max(1, eye // 2), max(1, eye // 2))
-        else:
-            screen.rectangle(int(x - w * 0.5), ey, eye, eye)
-            screen.rectangle(int(x + w * 0.5) - eye, ey, eye, eye)
-        if kind == "bug":
-            # Angry brows and little fangs.
-            screen.pen = shade
-            for side in (-1, 1):
-                screen.line(x + side * w * 0.65, y - h * 0.62, x + side * w * 0.15, y - h * 0.48)
-            screen.pen = FANG
-            for fx in (-0.3, 0.3):
-                screen.triangle(int(x + fx * w - r * 0.1), int(y + h * 0.3), int(x + fx * w + r * 0.1), int(y + h * 0.3),
-                                int(x + fx * w), int(y + h * 0.55))
-        elif kind == "node_modules":
-            # Rivets, and dents as it takes damage.
-            screen.pen = RIVET
-            for rx, ry in ((-0.85, -0.75), (0.85, -0.75), (-0.85, 0.75), (0.85, 0.75)):
-                screen.circle(int(x + rx * w), int(y + ry * h), max(1, int(r * 0.07)))
-            dents = int(4 * (1 - max(bot.hp, 0) / bot.max_hp))
-            screen.pen = shade
-            for k in range(dents):
-                dx = ((k * 37 + int(bot.phase * 10)) % 13 - 6) / 8.0
-                screen.circle(int(x + dx * w), int(y + h * 0.45), max(1, int(r * 0.11)))
-        elif kind == "hallucination" and r >= 14:
-            screen.font = font.salty
-            screen.pen = metal
-            screen.text("?", int(x + w * 0.7), int(y - h * 1.5))
-        elif kind == "agent":
-            # Its mouth is a terminal, prompt blinking.
-            screen.pen = BLACK
-            screen.rectangle(int(x - w * 0.55), int(y + h * 0.2), int(w * 1.1), int(h * 0.55))
-            screen.pen = TERMINAL
-            k = max(1, int(r * 0.08))
-            px, py = int(x - w * 0.42), int(y + h * 0.47)
-            for i in range(3):  # the ">": two strokes meeting at its point
-                screen.rectangle(px + i * k, py - 2 * k + i * k, k, k)
-                screen.rectangle(px + i * k, py + 2 * k - i * k, k, k)
-            if int(t * 2) % 2:
-                screen.rectangle(px + 4 * k, py + k, 3 * k, k)
-        else:
-            # A grille for a mouth.
-            screen.pen = shade
-            for gx in (-0.3, 0.0, 0.3):
-                screen.rectangle(int(x + gx * w) - 1, int(y + h * 0.3), 2, int(h * 0.4))
+    def draw_health(self, bot, x, y, r):
+        # Once it's hurt, for anything that takes more than a couple of hits.
+        if bot.hp < bot.max_hp and bot.spec["hp"] > 2:
+            screen.pen = TRACK
+            screen.rectangle(int(x - r), int(y + r + 3), int(2 * r), 2)
+            screen.pen = BOT_PENS[bot.kind]
+            screen.rectangle(int(x - r), int(y + r + 3), max(1, int(2 * r * max(bot.hp, 0) / bot.max_hp)), 2)
 
     def draw_pickups(self):
         t = time.ticks_ms() / 1000
@@ -1403,6 +1626,7 @@ class Game:
         if self.state == "splash":
             self.splash += dt
             self.draw_splash()
+            self.build_models(20)
             if self.splash >= SPLASH_SECONDS or (self.splash > 0.4 and badge.pressed()):
                 self.state = "title"
             return False
@@ -1418,8 +1642,9 @@ class Game:
 
         if self.state in ("title", "over") or (self.state == "settings" and self.settings_from in ("title", "over")):
             # Aim isn't calibrated until a game starts; keep the view still
-            # and let the floor stream by.
+            # and let the floor stream by, and build any bot models left.
             self.scroll = (self.scroll + dt * 3.0) % 4.0
+            self.build_models(8)
 
         if self.state == "settings":
             rows = self.settings_rows()
@@ -1534,6 +1759,7 @@ class Game:
         self.draw_world()
         self.draw_card(["HOLD STILL", "Calibrating the firewall..."], WEAPON_PENS[1])
         display.update()
+        self.build_models()
         self.aim.calibrate(self.settings["turning"])
         self.reset()
         self.state = "play"
@@ -1565,6 +1791,7 @@ def save_state(best, settings):
 previous_mode = badge.mode()
 previous_clear = badge.default_clear
 previous_antialias = screen.antialias
+previous_fill_rule = screen.fill_rule
 cleaned_up = False
 
 
@@ -1577,6 +1804,7 @@ def on_exit():
     badge.default_clear = previous_clear
     badge.mode(previous_mode)
     screen.antialias = previous_antialias
+    screen.fill_rule = previous_fill_rule
 
 
 def update():
@@ -1594,6 +1822,8 @@ def update():
 try:
     badge.mode(HIRES | VSYNC)
     screen.antialias = image.OFF
+    # Bot models are many overlapping lines: overlaps add up, not cancel.
+    screen.fill_rule = image.NON_ZERO
     badge.default_clear = None
     game = Game()
     last_tick = time.ticks_ms()

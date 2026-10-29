@@ -9,7 +9,20 @@ number is 0, anything can change between versions:
 Each release is tagged `repo-defender-v<version>`, because this repo holds
 several apps.
 
-## 0.3.0: + cards, Friday Deploy, and pickups you can see
+## 0.3.0: neon creatures, + cards, Friday Deploy, and pickups you can see
+
+- **Neon wireframe bots**, from Grok's designs in `design/enemies`, in place of
+  the flat heads. Each keeps its behaviour:
+  - the bug is a six-legged mite, scuttling
+  - node_modules is a domed pillbug that sheds armour as you hit it
+  - the hallucination is a jellyfish that turns as it sways
+  - the rogue agent is a horned dragon, wings beating
+
+  They're native vector shapes, and small ones are drawn from images baked at
+  launch (see the README). Health bars only show once a bot is hurt. A close
+  bot flashes white when hit, and a distant one pops.
+- **Fixed: trails along the horizon.** The sky stopped a row short of the
+  floor, so anything crossing the horizon left streaks there.
 
 - **+ cards.** Any card offered has a 15% chance of being its + version, in a
   gold frame, which does twice as much:
@@ -24,8 +37,9 @@ several apps.
   them before you've seen them.
 - **The upgrade screen marks its buttons** with a glowing, bobbing `<`, `>` and
   ✓ right over Left, Right and enter, in place of the arrows and `↩`.
-- **The self-test** grows to 34 checks, including one that every card's text
-  fits in the badge's own fonts.
+- **The self-test** grows to 36 checks, including that every card's text
+  fits in the badge's own fonts, that every bot model builds, and that the
+  world covers every row of the screen.
 
 ## 0.2.0: stats, upgrades, weapon cards and new bots
 

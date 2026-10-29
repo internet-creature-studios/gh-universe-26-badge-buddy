@@ -49,7 +49,8 @@ stock/      the firmware's original copies of files badge/ replaces
 examples/   how each example's assets are made: scripts, sources, previews
 tools/      deploy.py, which installs badge/ paths onto the badge;
             menu_icon.py, which adds an app's menu icon;
-            locate_buttons.py, which re-measures where the buttons sit
+            locate_buttons.py, which re-measures where the buttons sit;
+            raw2png.py, which turns screen captures into PNGs
 docs/       what's known about the badge
 ```
 
@@ -66,7 +67,9 @@ docs/       what's known about the badge
 3. Copy it to `/dev_app` and run it over serial with a timeout. Print timing
    lines, and check them against the frame budget. For game rules, write an
    on-badge self-test that swaps the run loop for checks
-   ([workflow.md](docs/workflow.md#testing-game-rules-on-the-badge)).
+   ([workflow.md](docs/workflow.md#testing-game-rules-on-the-badge)). To see
+   what it really draws, capture the screen
+   ([workflow.md](docs/workflow.md#capturing-the-screen)).
 4. Install it with `python3 tools/deploy.py badge/apps/<folder_name>`. That
    verifies it and leaves the badge on the menu.
 5. For a menu icon, write its contours and run `python3 tools/menu_icon.py
@@ -88,5 +91,6 @@ docs/       what's known about the badge
   Baked image layers, tiled blits, motion blur. See
   `examples/internet-creature-studios/`.
 - **Repo Defender** (`badge/apps/repo_defender`): a first-person shooter aimed
-  by turning, using the gyro. Drawn entirely with shapes, it has game states,
-  a saved high score and a geometric menu icon. See `examples/repo-defender/`.
+  by turning, using the gyro. Its neon wireframe bots are native vector
+  shapes, with small ones baked into scaled images. It has game states, a
+  saved high score and a geometric menu icon. See `examples/repo-defender/`.

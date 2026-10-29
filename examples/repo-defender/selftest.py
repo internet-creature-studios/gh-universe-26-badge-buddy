@@ -18,6 +18,8 @@ import os
 os.chdir('/dev_game')
 src = open('__init__.py').read()
 tests = """
+import gc
+
 def check(name, ok, detail=""):
     print("SELFTEST", "PASS" if ok else "FAIL", name, detail)
 
@@ -40,6 +42,19 @@ def selftest():
     g = game
     g.settings = dict(DEFAULT_SETTINGS)  # in memory only: never saved here
     g.aim.calibrate("rotate", 0.3)
+
+    gc.collect()
+    free, t, count = gc.mem_free(), time.ticks_ms(), len(g.unbuilt)
+    g.build_models()
+    took = time.ticks_diff(time.ticks_ms(), t)
+    gc.collect()
+    built = sum(1 for frames in g.models.values() for sizes in frames for m in sizes if m is not None)
+    t = time.ticks_us()
+    gc.collect()
+    collect = time.ticks_diff(time.ticks_us(), t) / 1000
+    check("every bot model builds", count > 0 and not g.unbuilt and built == count,
+          "%d models in %d ms, %d KB, %d KB free, a garbage collection takes %.1f ms" % (
+              count, took, (free - gc.mem_free()) // 1024, gc.mem_free() // 1024, collect))
 
     fresh(g)
     run_for(g, 1.0, clear=True)
@@ -284,12 +299,22 @@ def selftest():
     check("tilting turns: right dip turns right, level stops", right > 0 and level == 0 and left == -TILT_DPS,
           "%.1f, %.1f, %.1f deg/s" % (right, level, left))
 
+    # The screen isn't cleared between frames, so the world has to cover
+    # every pixel, or whatever moves across a gap leaves trails.
+    screen.pen = color.rgb(255, 0, 255)
+    screen.clear()
+    stale = str(screen.get(0, 0))
+    g.draw_world()
+    rows = [y for y in range(HEIGHT) if any(str(screen.get(x, y)) == stale for x in (0, 100, 200, WIDTH - 1))]
+    check("the world covers every row of the screen", not rows, "rows left: %s" % rows[:8])
+
     try:
         fresh(g)
         g.bots = [Bot(k, a) for k, a in (("bug", -10), ("node_modules", 0), ("hallucination", 8), ("agent", 15))]
         for b, d in zip(g.bots, (4, 6, 9, 12)):
             b.distance = d
         g.bots[1].hp = 5  # dented
+        g.bots[0].flash = g.bots[3].flash = 0.1  # a hit: up close it flashes white, further off it pops
         for state in ("title", "settings", "paused", "upgrade", "upgrade", "over"):
             g.state = state
             if state == "upgrade":

@@ -1,4 +1,10 @@
-# Repo Defender: neon wireframe enemy proposals (proposal only; the game is unchanged)
+# Repo Defender: neon wireframe enemy proposals
+
+**In the game since 0.3.0.** Skitter, Hoardshell, Mirage and Overmind are the
+bug, node_modules, hallucination and rogue agent, ported into
+`badge/apps/repo_defender/__init__.py` with animation frames added. The game
+draws them as native vector shapes, and small ones from images baked at launch
+(see examples/repo-defender/README.md). Glitchwyrm is still a spare.
 
 Source game: badge/apps/repo_defender/__init__.py (MicroPython, 320x240 badge screen, draws with screen.line/rectangle).
 The current bots are flat 2D heads (draw_head), four kinds in BOTS: bug, node_modules, hallucination, agent (boss).
