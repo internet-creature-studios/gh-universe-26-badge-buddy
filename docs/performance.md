@@ -43,7 +43,8 @@ over hundreds of small draw calls and the maths that projects each thing.
 - **Spend calls on what's close.** Draw far-off things with fewer calls, and
   cache anything that doesn't change per frame, such as text widths.
 - **Expect the heaviest moments to dip.** Repo Defender runs at about 30 fps
-  normally and about 25 in its busiest moments.
+  in normal play, and about 22 in a stress scene of 12 detailed enemies and 4
+  pickups at once.
 
 ## The frame budget
 

@@ -9,12 +9,23 @@ number is 0, anything can change between versions:
 Each release is tagged `repo-defender-v<version>`, because this repo holds
 several apps.
 
-## 0.2.0: stats, upgrades and manual fire
+## 0.2.0: stats, upgrades and new enemies
 
-- **You fire now.** Hold Down to fire, and press Up to reload early. Overlays
-  beside those buttons show what they do. Automatic fire is an option.
-- **Magazines and reloading.** An empty magazine reloads by itself, and weapons
-  you aren't holding slowly refill.
+- **New enemies with their own behaviours**, in place of colour-coded robots:
+  - bugs (fast, straight)
+  - node_modules boxes (slow tanks that dent)
+  - hallucinations (swaying ghosts)
+  - a rogue agent boss with a terminal for a face
+- **Weapons fire by themselves.** What sets them apart is the job each suits:
+  REVIEW now pierces through everything in a line, and REVERT's spread handles
+  swaying enemies. Colour matching is gone.
+- **Magazines and reloading.** Down reloads early, an empty magazine reloads
+  by itself, and weapons you aren't holding slowly refill. An overlay beside
+  Down shows the reload filling.
+- **Up is settings on every screen**, separate from pause:
+  - turning (rotate your body, or tilt the badge)
+  - Reset origin
+- **Pause** is Resume, Restart and Quit.
 - **Player stats** that scale every weapon:
   - fire rate
   - flat damage
@@ -24,8 +35,7 @@ several apps.
   - max health
   - 0–3 shields
 - **An upgrade pick at every release.** The game freezes on three cards with
-  flavour text, each showing the stat now and after, with arrows pointing at
-  Left, Right and enter:
+  flavour text, each showing the stat now and after:
   - Larger Runners
   - CODEOWNERS
   - Copilot
@@ -33,27 +43,15 @@ several apps.
   - Automated PR Review
   - Branch Protection
   - Two-Factor Auth
-- **Each bot colour has an identity:**
-  - Green force-pushers are fastest, straight at you, with medium health.
-  - Blue node_modules are slow tanks, three matched REVIEW shots.
-  - Orange hallucinators sway side to side, with low health.
-- **Matching your weapon to a bot's colour now does 2× damage and scores 2×
-  points**, with a white flash and a "MATCH" score. It used to do 3× damage
-  that hardly ever mattered, because REVIEW destroyed nearly every bot in one
-  hit regardless.
-- **Shields** absorb a bot completely, and recharge 8 s after you were last
-  reached.
-- **Pickups** bob up and down where a destroyed bot was. Shoot one before it
+- **Shields** stop an enemy completely, and recharge 8 s after one last
+  reached you.
+- **Pickups** bob up and down where a destroyed enemy was. Shoot one before it
   fades to collect it:
   - pizza (health)
   - coffee (overdrive)
   - Cache Hit (a shield back)
-  - rm -rf (deletes every bot, bar the boss)
-- **Options**, saved on the badge: firing (hold Down, or automatic) and
-  turning (rotate your body, or tilt the badge).
-- **The pause menu** adds Re-centre aim and Options.
-- **The title's rules sit higher**, clear of the version, and point at the
-  options button.
+  - rm -rf (deletes everything, bar the boss)
+- **The title's rules sit higher**, clear of the version.
 - **An on-badge self-test** of the rules (`selftest.py`).
 
 ## 0.1.0: first playable

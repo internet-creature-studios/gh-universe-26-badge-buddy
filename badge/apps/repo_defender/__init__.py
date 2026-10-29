@@ -1,20 +1,21 @@
-"""Repo Defender: rogue AI bots are coming for your main branch.
+"""Repo Defender: bugs, hallucinations and worse are coming for your main branch.
 
-Turn your body (or tilt the badge, in options) to aim, about 30 degrees
-either way, so it plays seated. Hold Down to fire and press Up to reload
-early; weapons you aren't holding slowly refill. Left and Right switch
-weapons. Each bot is tinted the colour of the weapon it's weak to, and the
-matching weapon does double damage and scores double points. Destroyed bots
-sometimes leave a bobbing pickup: shoot it to collect it. After each wave
-(a "release") you pick one of three upgrades to your stats. A bot that
-reaches you takes a shield if one is charged, or merges itself into main
-and costs you health, and at zero the bots own the repo.
+Turn your body (or tilt the badge, in settings) to aim, about 30 degrees
+either way, so it plays seated. Your weapon fires by itself; Left and Right
+switch weapons and Down reloads early, and weapons you aren't holding slowly
+refill. Each enemy comes at you its own way: bugs scuttle straight in fast,
+node_modules boxes slide in slow and heavy, hallucinations sway side to side,
+and now and then a rogue agent lumbers in. Destroyed enemies sometimes leave
+a bobbing pickup: shoot it to collect it. After each wave (a "release") you
+pick one of three upgrades to your stats. An enemy that reaches you takes a
+shield if one is charged, or merges itself into main and costs you health,
+and at zero main belongs to them.
 
-It opens on the studio's logo. On the title, enter starts and Up opens the
-options: firing (hold Down, or automatic) and turning (rotate, or tilt). In
-a game, enter pauses: Up and Down pick, enter confirms, so enter twice is
-pause and unpause. Back or Home exits. The best score and the options are
-kept in /state/repo_defender.json.
+It opens on the studio's logo. Up opens settings from any screen (turning,
+and resetting where straight ahead is), and Up again closes them. Enter
+starts, and in a game pauses: Down picks Resume, Restart or Quit, and enter
+confirms, so enter twice is pause and unpause. Back or Home exits. The best
+score and the settings are kept in /state/repo_defender.json.
 """
 
 import json
@@ -33,7 +34,7 @@ VERSION = "0.2.0"
 GYRO_LSB_PER_DPS = 110.0
 # A left turn reads positive around the accelerometer's "down", and aim
 # (positive to the right) should follow it left: so -1. Everything (grid,
-# skyline, bots, shots, hits) goes through the one View, so flipping this
+# skyline, enemies, shots, hits) goes through the one View, so flipping this
 # mirrors them all together.
 YAW_SIGN = -1
 # How far either way you can aim. Turning further drags the centre along,
@@ -60,41 +61,38 @@ HFOV = 50.0
 FOCAL = (WIDTH / 2) / math.tan(math.radians(HFOV / 2))
 HORIZON = 92
 EYE = 1.0  # camera height, in world units
-REACH = 2.6  # a bot this close has reached you
+REACH = 2.6  # an enemy this close has reached you
 SPAWN_DISTANCE = 34.0
-SPAWN_ARC = 28.0  # bots appear within this many degrees of straight ahead
+SPAWN_ARC = 28.0  # enemies appear within this many degrees of straight ahead
 
-# --- Weapons and bots ------------------------------------------------------
+# --- Weapons and enemies -----------------------------------------------------
 
-# rate: shots a second while firing. damage: per pellet. magazine: shots
-# before it reloads (a REVERT blast is one shot). radius: how wide a shot hits.
+# Weapons fire by themselves. rate: shots a second. damage: per pellet.
+# magazine: shots before it reloads (a REVERT blast is one shot). radius: how
+# wide a shot hits. pierce: carries on through everything in its path.
 WEAPONS = [
     dict(name="LINT", rgb=(90, 255, 140), rate=7.0, damage=1, pellets=1, spread=0.0, speed=40.0, reach=34.0,
-         radius=0.25, magazine=30),
-    dict(name="REVIEW", rgb=(100, 170, 255), rate=1.6, damage=3, pellets=1, spread=0.0, speed=32.0, reach=34.0,
-         radius=0.5, magazine=4),
+         radius=0.25, magazine=30, pierce=False),
+    dict(name="REVIEW", rgb=(100, 170, 255), rate=1.6, damage=5, pellets=1, spread=0.0, speed=32.0, reach=34.0,
+         radius=0.5, magazine=4, pierce=True),
     dict(name="REVERT", rgb=(255, 160, 60), rate=1.3, damage=1, pellets=5, spread=7.0, speed=36.0, reach=14.0,
-         radius=0.3, magazine=3),
+         radius=0.3, magazine=3, pierce=False),
 ]
 # A weapon you aren't holding refills itself: a full magazine in this many
 # reload times.
 HOLSTER_REFILL = 5.0
-# A bot hit by the weapon of its own colour takes this many times the
-# damage, and if that hit destroys it, it scores this many times the points.
-MATCH = 2
 
-# Each colour has its own way of coming at you. weak: the weapon whose
-# colour it wears. hit: health lost on reaching you. weave: degrees it
-# sways either side.
-BOTS = {
-    "forcepush": dict(name="Force-pusher", hp=4, speed=4.6, weave=0.0, size=0.34, weak=0, points=20, hit=10,
-                      quip="force-pushed over your history"),
-    "node_modules": dict(name="node_modules", hp=18, speed=1.5, weave=0.0, size=0.5, weak=1, points=60, hit=20,
-                         quip="installed 40,000 packages into main"),
-    "hallucinator": dict(name="Hallucinator", hp=2, speed=2.6, weave=11.0, size=0.34, weak=2, points=15, hit=8,
-                         quip="added a package that doesn't exist"),
-    "mega": dict(name="Mega-agent", hp=30, speed=1.3, weave=4.0, size=0.8, weak=None, points=150, hit=35,
-                 quip="rewrote the whole repo overnight"),
+# Each enemy comes at you its own way. hit: health lost on reaching you.
+# weave: degrees it sways either side. height: where its middle floats.
+ENEMIES = {
+    "bug": dict(name="A bug", hp=4, speed=4.6, weave=0.0, size=0.34, height=0.32, points=20, hit=10,
+                quip="made it into prod", rgb=(220, 60, 70)),
+    "node_modules": dict(name="node_modules", hp=15, speed=1.5, weave=0.0, size=0.55, height=0.55, points=50, hit=20,
+                         quip="installed 40,000 packages into main", rgb=(200, 150, 90)),
+    "hallucination": dict(name="A hallucination", hp=2, speed=2.6, weave=11.0, size=0.36, height=0.85, points=15, hit=8,
+                          quip="added a package that doesn't exist", rgb=(215, 215, 245)),
+    "agent": dict(name="The rogue agent", hp=30, speed=1.3, weave=4.0, size=0.85, height=0.95, points=150, hit=35,
+                  quip="rewrote the whole repo overnight", rgb=(255, 80, 200)),
 }
 
 # --- Stats and upgrades ------------------------------------------------------
@@ -104,13 +102,13 @@ BASE_STATS = dict(
     fire_rate=1.0,  # times each weapon's own rate
     flat_damage=0,  # added to every pellet
     damage_bonus=0.0,  # increased damage: 0.25 is +25%
-    pickup_chance=0.10,  # chance a destroyed bot leaves a pickup
+    pickup_chance=0.10,  # chance a destroyed enemy leaves a pickup
     reload=1.2,  # seconds to refill a magazine
     max_health=100,
     shields=0,  # shield slots
 )
 MAX_SHIELDS = 3
-# Seconds after a bot last reached you before a shield comes back, and
+# Seconds after an enemy last reached you before a shield comes back, and
 # between each one after that.
 SHIELD_RECHARGE = 8.0
 
@@ -123,23 +121,23 @@ UPGRADES = [
          effect="+1 damage on every hit", step=1),
     dict(stat="damage_bonus", name="Copilot", flavor="Fight AI with AI. Seems only fair.",
          effect="+25% damage", step=0.25),
-    dict(stat="pickup_chance", name="Bug Bounty", flavor="Bots drop loot now. Finders keepers!",
+    dict(stat="pickup_chance", name="Bug Bounty", flavor="Bugs drop loot now. Finders keepers!",
          effect="+8% pickup chance", step=0.08),
     dict(stat="reload", name="Automated PR Review", flavor="Reloads approve themselves. LGTM!",
          effect="15% faster reloads", step=0.85),
     dict(stat="max_health", name="Branch Protection", flavor="main has been hitting the gym.",
          effect="+20 max health, and heals 20", step=20),
-    dict(stat="shields", name="Two-Factor Auth", flavor="Bots never have their phone on them.",
+    dict(stat="shields", name="Two-Factor Auth", flavor="Bugs never have their phone on them.",
          effect="+1 recharging shield", step=1),
 ]
 
-# Destroyed bots sometimes leave one bobbing where they were. Shoot it before
-# it fades to collect it. weight: how often it's the one dropped.
+# Destroyed enemies sometimes leave one bobbing where they were. Shoot it
+# before it fades to collect it. weight: how often it's the one dropped.
 PICKUPS = {
     "pizza": dict(name="PIZZA", rgb=(255, 200, 80), weight=35),  # heals
     "coffee": dict(name="COFFEE", rgb=(200, 140, 90), weight=35),  # overdrive
     "cache": dict(name="CACHE HIT", rgb=(120, 200, 255), weight=20),  # a shield back
-    "rmrf": dict(name="rm -rf", rgb=(255, 70, 90), weight=10),  # deletes every bot
+    "rmrf": dict(name="rm -rf", rgb=(255, 70, 90), weight=10),  # deletes every enemy
 }
 PICKUP_SECONDS = 4.5
 PICKUP_SIZE = 0.4
@@ -159,8 +157,8 @@ LOGO_PIECES = [
 ]
 SPLASH_SECONDS = 3.4
 
-PAUSE_CHOICES = ["Resume", "Re-centre aim", "Options", "Restart", "Quit"]
-DEFAULT_OPTIONS = dict(autofire=False, turning="rotate")
+PAUSE_CHOICES = ["Resume", "Restart", "Quit"]
+DEFAULT_SETTINGS = dict(turning="rotate")
 
 # --- The buttons -------------------------------------------------------------
 
@@ -198,10 +196,10 @@ RELOAD_ARC = [(5.5 * math.cos(math.radians(a)), 5.5 * math.sin(math.radians(a)))
 
 WAVE_SECONDS = 25.0
 GAME_OVER_LINES = [
-    "The bots renamed it skynet-final-v2.",
     "main now has 4,096 open PRs.",
-    "Your README is now a poem about bots.",
+    "Your README is now a poem about bugs.",
     "CI passes. Nothing else does.",
+    "node_modules is now bigger than the repo.",
 ]
 STATE_PATH = "/state/repo_defender.json"
 
@@ -228,10 +226,6 @@ def pressed(b):
     return b is not None and badge.pressed(b)
 
 
-def held(b):
-    return b is not None and badge.held(b)
-
-
 def pen(rgb, alpha=255):
     return color.rgb(rgb[0], rgb[1], rgb[2], alpha)
 
@@ -256,8 +250,18 @@ PANEL = pen((0, 0, 0), 170)
 WEAPON_PENS = [pen(w["rgb"]) for w in WEAPONS]
 WEAPON_DIM = [pen(dim(w["rgb"], 0.45)) for w in WEAPONS]
 AIM_LINE = [pen(dim(w["rgb"], 0.25)) for w in WEAPONS]
-MEGA_PEN = pen((255, 80, 200))
-MEGA_DIM = pen(dim((255, 80, 200), 0.45))
+ENEMY_PENS = {kind: pen(e["rgb"]) for kind, e in ENEMIES.items()}
+BUG_DARK = pen((90, 20, 30))
+BUG_LEGS = pen((240, 120, 120))
+BOX_TOP = pen((225, 180, 120))
+BOX_SIDE = pen((160, 115, 65))
+TAPE = pen((235, 215, 160))
+DENT = pen((110, 75, 40))
+GHOST_DIM = pen((165, 165, 205))
+GHOST_EYES = pen((40, 30, 70))
+AGENT_BODY = pen((60, 52, 80))
+TERMINAL = WEAPON_PENS[0]
+ANTENNA_LIGHT = pen((255, 60, 60))
 PICKUP_PENS = {kind: pen(p["rgb"]) for kind, p in PICKUPS.items()}
 SHIELD_PEN = pen(PICKUPS["cache"]["rgb"])
 SHIELD_DIM = pen(dim(PICKUPS["cache"]["rgb"], 0.35))
@@ -416,7 +420,8 @@ class Aim:
             self.centre += yaw + YAW_LIMIT
         self.yaw = self.raw - self.centre
 
-    def recentre(self):
+    def reset_origin(self):
+        """Makes the way you're facing (or holding the badge) straight ahead."""
         self.centre = self.raw
         self.yaw = 0.0
         self.level = badge.imu()[0]
@@ -465,17 +470,16 @@ class View:
                 WIDTH / 2 + FOCAL * bx / bz, HORIZON + lift / bz)
 
 
-class Bot:
+class Enemy:
     def __init__(self, kind, azimuth):
         self.kind = kind
-        self.spec = BOTS[kind]
+        self.spec = ENEMIES[kind]
         self.size = self.spec["size"]
         self.home = azimuth
         self.azimuth = azimuth
         self.distance = SPAWN_DISTANCE
         self.hp = self.spec["hp"]
         self.flash = 0.0
-        self.matched = False
         self.phase = random.uniform(0, 6.28)
 
     def update(self, dt, t):
@@ -504,6 +508,7 @@ class Shot:
         self.azimuth = azimuth
         self.distance = REACH
         self.last = REACH
+        self.struck = []  # enemies a piercing shot has already hit
 
 
 class Game:
@@ -513,9 +518,10 @@ class Game:
         self.state = "splash"
         self.splash = 0.0
         self.choice = 0
-        self.option_row = 0
-        self.options_from = "title"
-        self.best, self.options = load_state()
+        self.setting_row = 0
+        self.settings_from = "title"
+        self.origin_note = 0.0
+        self.best, self.settings = load_state()
         logo = image.load("assets/studio_logo.png")
         self.logo = logo  # the pieces are windows onto it
         self.logo_pieces = [
@@ -529,7 +535,7 @@ class Game:
         self.health = self.stats["max_health"]
         self.shields = 0
         self.shield_timer = 0.0
-        self.bots = []
+        self.enemies = []
         self.shots = []
         self.pickups = []
         self.popups = []
@@ -555,10 +561,10 @@ class Game:
     # --- rules ---
 
     def spawn(self):
-        kinds = ["forcepush"] * 3 + ["hallucinator"] * 3
+        kinds = ["bug"] * 3 + ["hallucination"] * 3
         if self.wave >= 1:
             kinds += ["node_modules"] * 2
-        self.bots.append(Bot(random.choice(kinds), random.uniform(-SPAWN_ARC, SPAWN_ARC)))
+        self.enemies.append(Enemy(random.choice(kinds), random.uniform(-SPAWN_ARC, SPAWN_ARC)))
 
     def offer_upgrades(self):
         """Freezes the game on three different upgrades to choose from."""
@@ -578,33 +584,27 @@ class Game:
             self.health = min(self.stats["max_health"], self.health + upgrade["step"])
         elif stat == "shields":
             self.shields += 1  # a new shield arrives charged
-        self.say("Release v0.%d.0 shipped with %s. More bots incoming." % (self.wave + 1, upgrade["name"]))
+        self.say("Release v0.%d.0 shipped with %s. More incoming." % (self.wave + 1, upgrade["name"]))
         if self.wave % 3 == 2:
-            self.bots.append(Bot("mega", random.uniform(-SPAWN_ARC * 0.6, SPAWN_ARC * 0.6)))
+            self.enemies.append(Enemy("agent", random.uniform(-SPAWN_ARC * 0.6, SPAWN_ARC * 0.6)))
         self.state = "play"
 
     def reload_now(self):
-        """Up: start reloading the weapon in hand, unless it's full or already reloading."""
+        """Down: start reloading the weapon in hand, unless it's full or already reloading."""
         i = self.weapon
         if self.reloading[i] <= 0 and self.ammo[i] < WEAPONS[i]["magazine"]:
             self.reloading[i] = self.stats["reload"]
 
-    def hit(self, shot, bot):
-        matched = bot.spec["weak"] == shot.index
-        damage = (shot.weapon["damage"] + self.stats["flat_damage"]) * (1 + self.stats["damage_bonus"])
-        bot.hp -= damage * (MATCH if matched else 1)
-        bot.flash = 0.12
-        bot.matched = matched
-        if bot.hp > 0:
+    def hit(self, shot, enemy):
+        enemy.hp -= (shot.weapon["damage"] + self.stats["flat_damage"]) * (1 + self.stats["damage_bonus"])
+        enemy.flash = 0.12
+        if enemy.hp > 0:
             return
-        points = bot.spec["points"] * (MATCH if matched else 1)
+        points = enemy.spec["points"]
         self.score += points
-        if matched:
-            self.popups.append([bot.azimuth, bot.distance, "MATCH +%d" % points, 1.0, WEAPON_PENS[shot.index]])
-        else:
-            self.popups.append([bot.azimuth, bot.distance, "+%d" % points, 0.8, TEXT])
+        self.popups.append([enemy.azimuth, enemy.distance, "+%d" % points, 0.8, TEXT])
         if random.random() < self.stats["pickup_chance"]:
-            self.pickups.append(Pickup(self.pickup_kind(), bot.azimuth, max(bot.distance, 5.0)))
+            self.pickups.append(Pickup(self.pickup_kind(), enemy.azimuth, max(enemy.distance, 5.0)))
 
     def pickup_kind(self):
         kinds = [k for k in PICKUPS if k != "cache" or self.stats["shields"] > 0]
@@ -627,19 +627,18 @@ class Game:
             self.overdrive = OVERDRIVE_SECONDS
             label = "COFFEE: OVERDRIVE"
         else:
-            # rm -rf: every bot on the field, bar the boss, which had backups.
-            gone = [b for b in self.bots if b.hp > 0 and b.kind != "mega"]
-            points = sum(b.spec["points"] for b in gone)
-            for bot in gone:
-                bot.hp = 0
+            # rm -rf: everything on the field, bar the rogue agent, which had backups.
+            gone = [e for e in self.enemies if e.hp > 0 and e.kind != "agent"]
+            points = sum(e.spec["points"] for e in gone)
+            for enemy in gone:
+                enemy.hp = 0
             self.score += points
             self.nuked = 0.5
-            self.say("rm -rf deleted %d bots. +%d%s" % (
-                len(gone), points, " (the Mega-agent had backups)" if any(b.kind == "mega" for b in self.bots) else ""))
+            self.say("rm -rf deleted %d. +%d%s" % (
+                len(gone), points, " (the rogue agent had backups)" if any(e.kind == "agent" for e in self.enemies) else ""))
         self.popups.append([pickup.azimuth, pickup.distance, label, 1.0, PICKUP_PENS[pickup.kind]])
 
-    def update(self, dt, trigger):
-        """Advances the game; trigger is whether the weapon is firing."""
+    def update(self, dt):
         self.clock += dt
         self.scroll = (self.scroll + dt * 3.0) % 4.0
         wave = int(self.clock // WAVE_SECONDS)
@@ -665,12 +664,12 @@ class Game:
                 refill = weapon["magazine"] / (HOLSTER_REFILL * self.stats["reload"])
                 self.ammo[i] = min(float(weapon["magazine"]), self.ammo[i] + refill * dt)
 
-        # Fire while the trigger's held and there's a round in the magazine;
-        # emptying it starts a reload.
+        # The weapon in hand fires whenever it has a round; emptying the
+        # magazine starts a reload.
         w = WEAPONS[self.weapon]
         rate = w["rate"] * self.stats["fire_rate"] * (2 if self.overdrive > 0 else 1)
         self.cooldown -= dt
-        while trigger and self.cooldown <= 0 and self.reloading[self.weapon] <= 0 and self.ammo[self.weapon] >= 1:
+        while self.cooldown <= 0 and self.reloading[self.weapon] <= 0 and self.ammo[self.weapon] >= 1:
             self.cooldown += 1.0 / rate
             for p in range(w["pellets"]):
                 offset = 0.0 if w["pellets"] == 1 else w["spread"] * (p / (w["pellets"] - 1) * 2 - 1)
@@ -683,16 +682,16 @@ class Game:
         for shot in self.shots:
             shot.last = shot.distance
             shot.distance += shot.weapon["speed"] * dt
-        for bot in self.bots:
-            bot.update(dt, self.clock)
+        for enemy in self.enemies:
+            enemy.update(dt, self.clock)
 
-        # Hits: a shot sweeps from where it was to where it is this frame,
-        # and stops at the first bot or pickup it meets.
-        targets = self.pickups + self.bots
+        # Hits: a shot sweeps from where it was to where it is this frame. It
+        # stops at the first enemy or pickup it meets, unless it pierces.
+        targets = self.pickups + self.enemies
         spent = []
         for shot in self.shots:
             for target in targets:
-                if getattr(target, "taken", False) or getattr(target, "hp", 1) <= 0:
+                if getattr(target, "taken", False) or getattr(target, "hp", 1) <= 0 or target in shot.struck:
                     continue
                 if not (shot.last - 0.6 <= target.distance <= shot.distance + 0.6):
                     continue
@@ -702,30 +701,33 @@ class Game:
                         self.collect(target)
                     else:
                         self.hit(shot, target)
-                    spent.append(shot)
-                    break
+                    if shot.weapon["pierce"]:
+                        shot.struck.append(target)
+                    else:
+                        spent.append(shot)
+                        break
         if spent:
             self.shots = [s for s in self.shots if s not in spent]
         self.shots = [s for s in self.shots if s.distance < s.weapon["reach"]]
 
-        # Bots that reach you hit a shield if one's charged, or merge into main.
+        # Enemies that reach you hit a shield if one's charged, or merge into main.
         alive = []
-        for bot in self.bots:
-            if bot.hp <= 0:
+        for enemy in self.enemies:
+            if enemy.hp <= 0:
                 continue
-            if bot.distance <= REACH:
+            if enemy.distance <= REACH:
                 self.shield_timer = SHIELD_RECHARGE
                 if self.shields > 0:
                     self.shields -= 1
                     self.blocked = 0.35
-                    self.say("Two-factor auth turned away a %s." % bot.spec["name"])
+                    self.say("Two-factor auth stopped %s." % enemy.spec["name"].lower())
                 else:
-                    self.health -= bot.spec["hit"]
+                    self.health -= enemy.spec["hit"]
                     self.hurt = 0.35
-                    self.say("%s %s. -%d" % (bot.spec["name"], bot.spec["quip"], bot.spec["hit"]))
+                    self.say("%s %s. -%d" % (enemy.spec["name"], enemy.spec["quip"], enemy.spec["hit"]))
             else:
-                alive.append(bot)
-        self.bots = alive
+                alive.append(enemy)
+        self.enemies = alive
 
         if self.shields < self.stats["shields"]:
             self.shield_timer -= dt
@@ -750,7 +752,7 @@ class Game:
             self.state = "over"
             if self.score > self.best:
                 self.best = self.score
-                save_state(self.best, self.options)
+                save_state(self.best, self.settings)
 
     def say(self, text):
         self.message = text
@@ -807,55 +809,133 @@ class Game:
         screen.pen = p
         screen.rectangle(2 if x < 0 else WIDTH - 32, int(min(HEIGHT - 26, max(HORIZON + 4, y))) - 4, 4, 8)
 
-    def draw_bots(self):
+    def draw_enemies(self):
         view = self.view
-        # Far to near, so near bots cover far ones.
-        for bot in sorted(self.bots, key=lambda b: -b.distance):
-            spec = bot.spec
-            at = view.polar(bot.azimuth, bot.distance, 0.6)
+        t = time.ticks_ms() / 1000
+        # Far to near, so near ones cover far ones.
+        for enemy in sorted(self.enemies, key=lambda e: -e.distance):
+            spec = enemy.spec
+            at = view.polar(enemy.azimuth, enemy.distance, spec["height"])
             if at is None:
                 continue
             x, y, depth = at
             r = spec["size"] * FOCAL / depth
-            mega = bot.kind == "mega"
-            body = MEGA_DIM if mega else WEAPON_DIM[spec["weak"]]
-            glow = MEGA_PEN if mega else WEAPON_PENS[spec["weak"]]
             if x + r < 0 or x - r > WIDTH:
-                self.edge_marker(x, y, glow)
+                self.edge_marker(x, y, ENEMY_PENS[enemy.kind])
                 continue
-            if bot.flash > 0:
-                # A matching hit flashes white; any other just lights it up.
-                body = glow = WHITE if bot.matched else glow
-            if r < 3:
-                screen.pen = glow
-                screen.rectangle(int(x) - 1, int(y) - 1, 3, 3)
+            main = WHITE if enemy.flash > 0 else ENEMY_PENS[enemy.kind]
+            if r < 9:
+                # Far off, detail doesn't show: one shape, in a call or two.
+                screen.pen = main
+                if enemy.kind == "node_modules":
+                    screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
+                else:
+                    screen.circle(int(x), int(y), max(1, int(r * 0.8)))
                 continue
-            if r < 7:
-                # Far off, the antenna and health bar don't show: just the
-                # body and a lit visor, in three calls rather than seven.
-                screen.pen = body
-                screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
-                screen.pen = glow
-                screen.rectangle(int(x - r * 0.6), int(y - r * 0.4), int(r * 1.2), max(1, int(r * 0.35)))
-                continue
+            if enemy.kind == "bug":
+                self.draw_bug(x, y, r, main, enemy, t)
+            elif enemy.kind == "node_modules":
+                self.draw_box(x, y, r, main, enemy)
+            elif enemy.kind == "hallucination":
+                self.draw_ghost(x, y, r, main, enemy, t)
+            else:
+                self.draw_agent(x, y, r, main, t)
+            # Health, for anything that takes more than a couple of hits.
+            if spec["hp"] > 2:
+                screen.pen = TRACK
+                screen.rectangle(int(x - r), int(y + r + 3), int(2 * r), 2)
+                screen.pen = ENEMY_PENS[enemy.kind]
+                screen.rectangle(int(x - r), int(y + r + 3), max(1, int(2 * r * max(enemy.hp, 0) / spec["hp"])), 2)
+
+    def draw_bug(self, x, y, r, main, enemy, t):
+        """A beetle scuttling at you: legs going, shell behind its head."""
+        wiggle = r * 0.18 * math.sin(t * 20 + enemy.phase)
+        screen.pen = BUG_LEGS
+        strokes = (0, 1) if r >= 18 else (0,)  # thicker legs only up close
+        for k, ly in enumerate((-0.35, 0.05, 0.45)):
+            dy = wiggle if k % 2 else -wiggle
+            for o in strokes:
+                screen.line(x - r * 0.55, y + ly * r + o, x - r * 1.2, y + ly * r + r * 0.25 + dy + o)
+                screen.line(x + r * 0.55, y + ly * r + o, x + r * 1.2, y + ly * r + r * 0.25 - dy + o)
+        screen.pen = main
+        screen.circle(int(x), int(y - r * 0.15), int(r * 0.8))
+        screen.pen = BUG_DARK
+        screen.rectangle(int(x) - 1, int(y - r * 0.9), 2, int(r * 0.9))
+        screen.circle(int(x), int(y + r * 0.45), int(r * 0.42))
+        screen.line(x - r * 0.15, y + r * 0.1, x - r * 0.55, y - r * 0.55)  # antennae
+        screen.line(x + r * 0.15, y + r * 0.1, x + r * 0.55, y - r * 0.55)
+        screen.pen = WHITE
+        eye = max(1, int(r * 0.11))
+        screen.circle(int(x - r * 0.16), int(y + r * 0.4), eye)
+        screen.circle(int(x + r * 0.16), int(y + r * 0.4), eye)
+
+    def draw_box(self, x, y, r, main, enemy):
+        """node_modules: the heaviest object in the universe, as a cardboard
+        box sliding at you. It dents as it takes damage."""
+        s, top = r, r * 0.4
+        screen.pen = BOX_TOP
+        screen.triangle(int(x - s), int(y - s), int(x + s), int(y - s), int(x + s * 0.75), int(y - s - top))
+        screen.triangle(int(x - s), int(y - s), int(x + s * 0.75), int(y - s - top), int(x - s * 0.75), int(y - s - top))
+        screen.pen = main
+        screen.rectangle(int(x - s), int(y - s), int(2 * s), int(2 * s))
+        screen.pen = BOX_SIDE
+        screen.rectangle(int(x + s) - 2, int(y - s), 2, int(2 * s))
+        screen.pen = TAPE
+        tape = max(2, int(s * 0.22))
+        screen.rectangle(int(x) - tape // 2, int(y - s), tape, int(s * 0.9))
+        screen.triangle(int(x) - tape // 2, int(y - s), int(x) + tape // 2, int(y - s), int(x), int(y - s - top))
+        # The label, with its name once it's big enough to read.
+        screen.pen = BLACK
+        screen.rectangle(int(x - s * 0.8), int(y + s * 0.15), int(s * 1.6), int(s * 0.5))
+        if s >= 38:
+            screen.font = font.winds
+            screen.pen = WHITE
+            tw, th = screen.measure_text("node_modules")
+            screen.text("node_modules", int(x) - tw // 2, int(y + s * 0.4) - th // 2)
+        dents = int(4 * (1 - max(enemy.hp, 0) / enemy.spec["hp"]))
+        screen.pen = DENT
+        for k in range(dents):
+            dx = ((k * 37 + int(enemy.phase * 10)) % 13 - 6) / 7.0
+            dy = ((k * 23 + int(enemy.phase * 7)) % 9 - 4) / 6.0
+            screen.circle(int(x + dx * s * 0.7), int(y - s * 0.4 + dy * s * 0.3), max(1, int(s * 0.12)))
+
+    def draw_ghost(self, x, y, r, main, enemy, t):
+        """A hallucination: a wobbly ghost that isn't quite there."""
+        body = main if enemy.flash > 0 or int(t * 8 + enemy.phase) % 5 else GHOST_DIM
+        screen.pen = body
+        screen.circle(int(x), int(y - r * 0.2), int(r * 0.8))
+        screen.rectangle(int(x - r * 0.8), int(y - r * 0.2), int(r * 1.6), int(r * 0.85))
+        for k in (-1, 0, 1):  # the wavy hem
+            screen.circle(int(x + k * r * 0.53), int(y + r * 0.65 + r * 0.06 * math.sin(t * 6 + k)), int(r * 0.27))
+        screen.pen = GHOST_EYES
+        screen.circle(int(x - r * 0.3), int(y - r * 0.25), max(1, int(r * 0.15)))
+        screen.circle(int(x + r * 0.3), int(y - r * 0.25), max(1, int(r * 0.15)))
+        screen.circle(int(x), int(y + r * 0.15), max(1, int(r * 0.1)))
+        if r >= 14:
+            screen.font = font.salty
             screen.pen = body
-            screen.rectangle(int(x - r), int(y - r), int(2 * r), int(2 * r))
-            screen.pen = BLACK
-            screen.rectangle(int(x - r * 0.75), int(y - r * 0.45), int(r * 1.5), int(r * 0.5))
-            screen.pen = glow
-            eye = max(1, int(r * 0.22))
-            screen.rectangle(int(x - r * 0.5), int(y - r * 0.35), eye, eye)
-            screen.rectangle(int(x + r * 0.5 - eye), int(y - r * 0.35), eye, eye)
-            screen.rectangle(int(x - 1), int(y - r * 1.5), 2, int(r * 0.5))
-            if bot.flash > 0 and bot.matched:
-                # Sparks off the corners.
-                s = max(2, int(r * 0.2))
-                for cx, cy in ((x - r, y - r), (x + r, y - r), (x - r, y + r), (x + r, y + r)):
-                    screen.rectangle(int(cx) - s // 2, int(cy) - s // 2, s, s)
-            # Health, for anything that takes more than one hit.
-            if spec["hp"] > 1:
-                screen.pen = glow
-                screen.rectangle(int(x - r), int(y + r + 2), max(1, int(2 * r * max(bot.hp, 0) / spec["hp"])), 2)
+            screen.text("?", int(x + r * 0.6), int(y - r * 1.4))
+
+    def draw_agent(self, x, y, r, main, t):
+        """The rogue agent: a big robot with a terminal for a face."""
+        screen.pen = main
+        screen.rectangle(int(x - r), int(y - r * 0.85), int(2 * r), int(r * 1.7))
+        screen.line(x, y - r * 0.85, x, y - r * 1.35)
+        screen.pen = ANTENNA_LIGHT if int(t * 3) % 2 else BUG_DARK
+        screen.circle(int(x), int(y - r * 1.4), max(2, int(r * 0.1)))
+        screen.pen = AGENT_BODY
+        screen.rectangle(int(x - r) + 3, int(y - r * 0.85) + 3, int(2 * r) - 6, int(r * 1.7) - 6)
+        screen.pen = BLACK
+        screen.rectangle(int(x - r * 0.75), int(y - r * 0.6), int(r * 1.5), int(r * 1.05))
+        # Its face: a prompt, with the cursor blinking.
+        screen.pen = TERMINAL
+        k = max(2, int(r * 0.12))
+        px, py = int(x - r * 0.5), int(y - r * 0.1)
+        for i in range(3):  # the ">": two strokes meeting at its point
+            screen.rectangle(px + i * k, py - 2 * k + i * k, k, k)
+            screen.rectangle(px + i * k, py + 2 * k - i * k, k, k)
+        if int(t * 2) % 2:
+            screen.rectangle(int(x), py + k, int(r * 0.35), k)
 
     def draw_pickups(self):
         t = time.ticks_ms() / 1000
@@ -863,7 +943,7 @@ class Game:
             # Fading out: blink through the last second.
             if pickup.life < 1.0 and int(pickup.life * 10) % 2:
                 continue
-            # Pickups bob up and down, which bots never do.
+            # Pickups bob up and down, which enemies never do.
             at = self.view.polar(pickup.azimuth, pickup.distance, 0.75 + 0.25 * math.sin(t * 3.0 + pickup.phase))
             if at is None:
                 continue
@@ -920,47 +1000,32 @@ class Game:
             screen.pen = WEAPON_PENS[shot.index]
             screen.rectangle(int(x) - size // 2, int(y) - size // 2, size, size)
 
-    def draw_side_tab(self, y, icon, active=False, progress=None):
+    def draw_side_tab(self, y, icon, lit=False, progress=None):
         """An overlay on the right edge beside the button at y, showing what
-        it does: 'fire', 'reload', 'options', 'up' or 'down'."""
+        it does: 'settings', 'reload' or 'next'."""
         x0, cx = WIDTH - 24, WIDTH - 11
         screen.pen = PANEL
         screen.rectangle(x0, y - 13, 24, 26)
-        lit = WEAPON_PENS[self.weapon] if icon in ("fire", "reload") else WEAPON_PENS[0]
-        screen.pen = lit if active else MUTED
+        glow = WEAPON_PENS[self.weapon] if icon == "reload" else WEAPON_PENS[0]
+        screen.pen = glow if lit else MUTED
         screen.rectangle(x0, y - 13, 2, 26)
-        if icon == "fire" and self.options["autofire"]:
-            screen.font = font.winds
-            centred("auto", y - 6, x0 + 2, 22)
-        elif icon == "fire":
-            if active:
-                screen.circle(cx, y, 6)
-                screen.pen = BLACK
-            for dx, dy, w, h in ((-6, 0, 4, 1), (3, 0, 4, 1), (0, -6, 1, 4), (0, 3, 1, 4)):
-                screen.rectangle(cx + dx, y + dy, w, h)
-            screen.rectangle(cx - 1, y - 1, 2, 2)
-        elif icon == "reload":
+        if icon == "reload":
             points = RELOAD_ARC
-            if progress is not None:
-                lit_count = int(len(points) * progress)
-                for i, (px, py) in enumerate(points):
-                    screen.pen = lit if i < lit_count else TRACK
-                    screen.rectangle(int(cx + px) - 1, int(y + py) - 1, 2, 2)
-            else:
-                for px, py in points:
-                    screen.rectangle(int(cx + px) - 1, int(y + py) - 1, 2, 2)
+            done = len(points) if progress is None else int(len(points) * progress)
+            for i, (px, py) in enumerate(points):
+                screen.pen = (glow if lit else MUTED) if i < done else TRACK
+                screen.rectangle(int(cx + px) - 1, int(y + py) - 1, 2, 2)
             ex, ey = points[-1]
             screen.triangle(int(cx + ex) - 3, int(y + ey) - 2, int(cx + ex) + 3, int(y + ey) - 2, int(cx + ex), int(y + ey) + 3)
-        elif icon == "options":
+        elif icon == "settings":
             screen.circle(cx, y, 5)
             for k in range(8):
                 a = math.radians(k * 45)
                 screen.rectangle(int(cx + 6.5 * math.cos(a)) - 1, int(y + 6.5 * math.sin(a)) - 1, 3, 3)
             screen.pen = BLACK
             screen.circle(cx, y, 2)
-        else:  # 'up' or 'down': a plain arrowhead
-            s = -1 if icon == "up" else 1
-            screen.triangle(cx - 6, y - 3 * s, cx + 6, y - 3 * s, cx, y + 4 * s)
+        else:  # 'next': a down arrowhead
+            screen.triangle(cx - 6, y - 3, cx + 6, y - 3, cx, y + 4)
 
     def draw_hud(self):
         cx, cy = WIDTH // 2, HORIZON + int(0.4 * FOCAL / 6.0)
@@ -1003,11 +1068,9 @@ class Game:
             screen.font = font.salty
         screen.pen = TEXT
         label = "v0.%d.0" % (self.wave + 1)
-        lw, _ = screen.measure_text(label)
-        screen.text(label, 196 - lw // 2, 4)
+        screen.text(label, 196 - text_width(label) // 2, 4)
         label = "%d" % self.score
-        lw, _ = screen.measure_text(label)
-        screen.text(label, WIDTH - 6 - lw, 4)
+        screen.text(label, WIDTH - 6 - text_width(label), 4)
 
         # Weapons, each with its ammo, or how far along its reload is.
         x = 6
@@ -1033,8 +1096,8 @@ class Game:
 
         # What Up and Down do, beside them.
         progress = 1 - self.reloading[self.weapon] / self.stats["reload"] if reloading else None
-        self.draw_side_tab(UP_Y, "reload", reloading, progress)
-        self.draw_side_tab(DOWN_Y, "fire", held(DOWN) or self.options["autofire"])
+        self.draw_side_tab(UP_Y, "settings")
+        self.draw_side_tab(DOWN_Y, "reload", reloading, progress)
 
         if self.message_time > 0:
             screen.pen = TEXT
@@ -1117,13 +1180,14 @@ class Game:
 
     def draw_game(self):
         self.draw_world()
-        self.draw_bots()
+        self.draw_enemies()
         self.draw_pickups()
         self.draw_shots()
         self.draw_hud()
 
-    def draw_menu(self, title, rows, chosen, top):
-        """A panel of rows with the chosen one lit, and Up and Down beside it."""
+    def draw_menu(self, title, rows, chosen, top, settings_lit=False):
+        """A panel of rows with the chosen one lit. Down moves to the next row,
+        enter takes it, and Up is settings, as everywhere."""
         left, width = 60, WIDTH - 120
         screen.pen = PANEL
         screen.rectangle(left, top, width, 52 + 26 * len(rows))
@@ -1141,14 +1205,13 @@ class Game:
                 screen.pen = TEXT
             centred(label, y)
             y += 26
-        self.draw_side_tab(UP_Y, "up", True)
-        self.draw_side_tab(DOWN_Y, "down", True)
+        self.draw_side_tab(UP_Y, "settings", settings_lit)
+        self.draw_side_tab(DOWN_Y, "next", True)
         self.draw_enter_hint()
 
-    def option_rows(self):
-        firing = "Automatic" if self.options["autofire"] else "Hold Down"
-        turning = "Tilt" if self.options["turning"] == "tilt" else "Rotate"
-        return ["Firing: < %s >" % firing, "Turning: < %s >" % turning, "Done"]
+    def settings_rows(self):
+        turning = "Tilt" if self.settings["turning"] == "tilt" else "Rotate"
+        return ["Turning: < %s >" % turning, "Reset origin", "Back"]
 
     def draw_upgrades(self):
         screen.pen = pen((0, 0, 0), 160)
@@ -1156,8 +1219,8 @@ class Game:
         screen.font = font.salty
         screen.pen = WEAPON_PENS[0]
         centred("v0.%d.0 shipped! Pick an upgrade" % (self.wave + 1), 8)
-        width, gap, top = 98, 5, 32
-        left = (WIDTH - len(self.offers) * width - (len(self.offers) - 1) * gap) // 2
+        width, gap, top = 92, 5, 32
+        left = 8
         for i, upgrade in enumerate(self.offers):
             x = left + i * (width + gap)
             chosen = i == self.card
@@ -1187,9 +1250,16 @@ class Game:
             now = self.stats[stat]
             screen.pen = WEAPON_PENS[0] if chosen else MUTED
             screen.text(stat_text(stat, now) + " -> " + stat_text(stat, stepped(upgrade, now)), x + 5, y + 138)
+        self.draw_side_tab(UP_Y, "settings")
         self.draw_pointer(LEFT_X, -1)
         self.draw_pointer(RIGHT_X, 1)
         self.draw_enter_hint()
+
+    def draw_behind_settings(self):
+        if self.settings_from in ("play", "paused", "upgrade"):
+            self.draw_game()
+        else:
+            self.draw_world()
 
     def frame(self, dt):
         """Runs and draws one frame; True means quit the app."""
@@ -1200,66 +1270,74 @@ class Game:
                 self.state = "title"
             return False
 
-        if self.state in ("title", "over", "options"):
+        # Up is settings on every screen, and Up again closes them.
+        if pressed(UP):
+            if self.state == "settings":
+                self.state = self.settings_from
+            else:
+                self.settings_from = self.state
+                self.setting_row = 0
+                self.state = "settings"
+
+        if self.state in ("title", "over") or (self.state == "settings" and self.settings_from in ("title", "over")):
             # Aim isn't calibrated until a game starts; keep the view still
             # and let the floor stream by.
             self.scroll = (self.scroll + dt * 3.0) % 4.0
 
+        if self.state == "settings":
+            rows = self.settings_rows()
+            if pressed(DOWN):
+                self.setting_row = (self.setting_row + 1) % len(rows)
+            change = pressed(LEFT) or pressed(RIGHT) or pressed(SELECT)
+            if change and self.setting_row == 0:
+                self.settings["turning"] = "rotate" if self.settings["turning"] == "tilt" else "tilt"
+                self.aim.set_mode(self.settings["turning"])
+                save_state(self.best, self.settings)
+            elif pressed(SELECT) and self.setting_row == 1:
+                self.aim.reset_origin()
+                self.origin_note = 1.5
+            elif pressed(SELECT) and self.setting_row == 2:
+                self.state = self.settings_from
+            self.origin_note = max(0.0, self.origin_note - dt)
+            self.draw_behind_settings()
+            if self.state == "settings":
+                self.draw_menu("SETTINGS", self.settings_rows(), self.setting_row, 40, True)
+                if self.origin_note > 0:
+                    screen.font = font.salty
+                    screen.pen = WEAPON_PENS[0]
+                    centred("Straight ahead is here now", 176)
+            return False
+
         if self.state == "title":
             self.draw_world()
-            aim = "Tilt" if self.options["turning"] == "tilt" else "Turn"
-            fire = "Your weapon fires itself" if self.options["autofire"] else "Hold Down to fire"
+            aim = "Tilt" if self.settings["turning"] == "tilt" else "Turn"
             self.draw_card([
                 "REPO DEFENDER",
-                "Rogue AI bots want your main branch.",
-                "%s to aim. %s, Up reloads." % (aim, fire),
-                "Left/Right: weapon. Match colours for x2.",
+                "Bugs and worse are coming for main.",
+                "%s to aim. Your weapons fire themselves." % aim,
+                "Left/Right: weapon. Down: reload.",
                 "Shoot pickups. Upgrade every release.",
                 "Enter to defend. Best: %d" % self.best,
             ], WEAPON_PENS[0], top=6, left=8, width=WIDTH - 40)
             screen.font = font.salty
             screen.pen = MUTED
             screen.text("Repo Defender v" + VERSION, 6, HEIGHT - 20)
-            self.draw_side_tab(UP_Y, "options", True)
+            self.draw_side_tab(UP_Y, "settings", True)
             self.draw_enter_hint()
-            if pressed(UP):
-                self.open_options("title")
-            elif pressed(SELECT):
+            if pressed(SELECT):
                 self.start()
-            return False
-
-        if self.state == "options":
-            rows = self.option_rows()
-            if pressed(UP):
-                self.option_row = (self.option_row - 1) % len(rows)
-            if pressed(DOWN):
-                self.option_row = (self.option_row + 1) % len(rows)
-            change = pressed(LEFT) or pressed(RIGHT) or pressed(SELECT)
-            if change and self.option_row == 0:
-                self.options["autofire"] = not self.options["autofire"]
-                save_state(self.best, self.options)
-            elif change and self.option_row == 1:
-                self.options["turning"] = "rotate" if self.options["turning"] == "tilt" else "tilt"
-                save_state(self.best, self.options)
-            elif pressed(SELECT) and self.option_row == 2:
-                self.close_options()
-                return False
-            if self.options_from == "paused":
-                self.draw_game()
-            else:
-                self.draw_world()
-            self.draw_menu("OPTIONS", self.option_rows(), self.option_row, 40)
             return False
 
         if self.state == "over":
             self.draw_world()
-            self.draw_bots()
+            self.draw_enemies()
             self.draw_card([
                 "REPO COMPROMISED",
                 self.quip,
                 "Reached v0.%d.0. Score %d, best %d" % (self.wave + 1, self.score, self.best),
                 "Press enter to try again",
             ], DANGER)
+            self.draw_side_tab(UP_Y, "settings")
             self.draw_enter_hint()
             if pressed(SELECT):
                 self.start()
@@ -1279,11 +1357,11 @@ class Game:
             return False
 
         if self.state == "paused":
-            # Everything holds still; Up and Down pick, enter confirms.
-            if pressed(UP):
-                self.choice = (self.choice - 1) % len(PAUSE_CHOICES)
-            if pressed(DOWN):
+            # Everything holds still; Down (or Left and Right) picks, enter confirms.
+            if pressed(DOWN) or pressed(RIGHT):
                 self.choice = (self.choice + 1) % len(PAUSE_CHOICES)
+            if pressed(LEFT):
+                self.choice = (self.choice - 1) % len(PAUSE_CHOICES)
             if pressed(SELECT):
                 choice = PAUSE_CHOICES[self.choice]
                 if choice == "Quit":
@@ -1291,15 +1369,10 @@ class Game:
                 if choice == "Restart":
                     self.start()
                     return False
-                if choice == "Options":
-                    self.open_options("paused")
-                    return False
-                if choice == "Re-centre aim":
-                    self.aim.recentre()
                 self.state = "play"
             self.draw_game()
             if self.state == "paused":
-                self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 20)
+                self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 40)
             return False
 
         if pressed(SELECT):
@@ -1307,61 +1380,47 @@ class Game:
             self.state = "paused"
             self.choice = 0
             self.draw_game()
-            self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 20)
+            self.draw_menu("PAUSED", PAUSE_CHOICES, self.choice, 40)
             return False
         self.aim.update(dt)
-        if pressed(UP):
+        if pressed(DOWN):
             self.reload_now()
         if pressed(LEFT):
             self.weapon = (self.weapon - 1) % len(WEAPONS)
         if pressed(RIGHT):
             self.weapon = (self.weapon + 1) % len(WEAPONS)
-        self.update(dt, self.options["autofire"] or held(DOWN))
+        self.update(dt)
         self.draw_game()
         return False
-
-    def open_options(self, came_from):
-        self.options_from = came_from
-        self.option_row = 0
-        self.turning_was = self.options["turning"]
-        self.state = "options"
-
-    def close_options(self):
-        if self.options_from == "paused":
-            # Switching how turning works mid-game starts it from straight ahead.
-            if self.options["turning"] != self.turning_was:
-                self.aim.set_mode(self.options["turning"])
-            self.state = "paused"
-        else:
-            self.state = "title"
 
     def start(self):
         self.draw_world()
         self.draw_card(["HOLD STILL", "Calibrating the firewall..."], WEAPON_PENS[1])
         display.update()
-        self.aim.calibrate(self.options["turning"])
+        self.aim.calibrate(self.settings["turning"])
         self.reset()
         self.state = "play"
 
 
 def load_state():
-    """The best score and the options, from /state."""
+    """The best score and the settings, from /state."""
     try:
         with open(STATE_PATH) as f:
             saved = json.load(f)
     except (OSError, ValueError):
         saved = {}
-    options = dict(DEFAULT_OPTIONS)
-    for key, value in saved.get("options", {}).items():
-        if key in options and type(value) == type(options[key]):
-            options[key] = value
-    return int(saved.get("best", 0)), options
+    settings = dict(DEFAULT_SETTINGS)
+    # Older versions saved these as "options".
+    for key, value in saved.get("settings", saved.get("options", {})).items():
+        if key in settings and type(value) == type(settings[key]):
+            settings[key] = value
+    return int(saved.get("best", 0)), settings
 
 
-def save_state(best, options):
+def save_state(best, settings):
     try:
         with open(STATE_PATH, "w") as f:
-            json.dump({"best": best, "options": options}, f)
+            json.dump({"best": best, "settings": settings}, f)
     except OSError:
         pass
 
