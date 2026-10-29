@@ -8,23 +8,24 @@ rediscovering how the badge works:
 * [how to get code onto it](docs/workflow.md)
 * [how to recover it if something goes wrong](docs/workflow.md#reset-and-recovery)
 * [what it can do (the API)](docs/api.md)
-* [what things cost (memory, speed, battery)](docs/performance.md)
+* [what things cost (speed and memory)](docs/performance.md)
 
 **Examples:**
 
 - [Internet Creature Studios](examples/internet-creature-studios): the
   studio's logo over its site's hills, drawn live as parallax layers that race
   left or right as you tilt the badge, at about 30 fps. It adds a `:3` menu
-  icon with a blinking selection animation.
+  icon with a blinking selection animation. Made to be left running, it only
+  exits on two presses of ↩.
 
-  ![The studio's logo over its hills](examples/internet-creature-studios/preview/hills.png)
+  <img src="examples/internet-creature-studios/preview/hills.png" alt="The studio's logo over its hills" height="300"> <img src="examples/internet-creature-studios/preview/irl.jpg" alt="The app on a badge, worn at GitHub Universe" height="300">
 
 - [Repo Defender](examples/repo-defender): defend your main branch from rogue
   AI bots, neon wireframe creatures designed with Grok. Turn to aim (the gyro
   tracks you), weapons fire automatically, and you win more weapons and
   upgrades every release. It's playable seated.
 
-  ![Repo Defender in play, captured from the badge](examples/repo-defender/preview/gameplay.png)
+  <img src="examples/repo-defender/preview/gameplay.png" alt="Repo Defender in play, captured from the badge" height="300"> <img src="examples/repo-defender/preview/irl.jpg" alt="Repo Defender being played on a badge" height="300">
 
 ## Start here
 

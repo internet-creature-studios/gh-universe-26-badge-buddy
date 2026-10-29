@@ -11,6 +11,13 @@ The app is in [`badge/apps/internet_creature/`](../../badge/apps/internet_creatu
 Its feel is set by constants at the top of `__init__.py`: `RACE`,
 `TILT_CURVE`, `RESPONSE_MS` and `TILT_SIGN`.
 
+It's made to be left running on a badge you're wearing, so no single press
+leaves it. Any button shows "press ↩ twice to exit" at the bottom, with a
+pointer bobbing down at enter, and two presses of enter within 3 s
+(`HINT_MS`) leave. Home still leaves, as the firmware handles it. The hint
+sits over the nearest hills, which repaint every row each frame, so the next
+redraw wipes it.
+
 ## How the hills are made
 
 The website raymarches a heightfield of soft mounds in a WebGL shader, which
