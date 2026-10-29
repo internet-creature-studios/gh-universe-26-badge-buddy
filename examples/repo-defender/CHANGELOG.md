@@ -9,16 +9,26 @@ number is 0, anything can change between versions:
 Each release is tagged `repo-defender-v<version>`, because this repo holds
 several apps.
 
-## 0.2.0: stats, upgrades and new enemies
+## 0.2.0: stats, upgrades, weapon cards and new bots
 
-- **New enemies with their own behaviours**, in place of colour-coded robots:
-  - bugs (fast, straight)
-  - node_modules boxes (slow tanks that dent)
-  - hallucinations (swaying ghosts)
-  - a rogue agent boss with a terminal for a face
+- **Bots with their own behaviours**, in place of colour-coded ones. They're
+  all evil heads with red eyes, and each kind has a feature or two of its own:
+  - bugs (fast, straight): two antennae, angry brows and fangs
+  - node_modules (slow tanks): a wide riveted head with one long eye slit,
+    denting as you hit it
+  - hallucinations (swaying): a flickering dome with mismatched eyes and a "?"
+  - the rogue agent (a boss): horns, three eyes, and a terminal for a mouth
 - **Weapons fire by themselves.** What sets them apart is the job each suits:
   REVIEW now pierces through everything in a line, and REVERT's spread handles
-  swaying enemies. Colour matching is gone.
+  swaying bots. Colour matching is gone.
+- **You start with LINT, and win the other weapons from cards.** Each weapon
+  has a card. Without the weapon, it gives it to you. With it, it improves it:
+  - LINT: More Lint Rules, +10 rounds per magazine
+  - REVIEW: Code Review unlocks it, then Senior Reviewer adds 2 damage a shot
+  - REVERT: git revert unlocks it, then Revert Harder adds a pellet to the
+    spread
+
+  Left and Right only switch between the weapons you have.
 - **Magazines and reloading.** Down reloads early, an empty magazine reloads
   by itself, and weapons you aren't holding slowly refill. An overlay beside
   Down shows the reload filling.
@@ -43,9 +53,9 @@ several apps.
   - Automated PR Review
   - Branch Protection
   - Two-Factor Auth
-- **Shields** stop an enemy completely, and recharge 8 s after one last
+- **Shields** stop a bot completely, and recharge 8 s after one last
   reached you.
-- **Pickups** bob up and down where a destroyed enemy was. Shoot one before it
+- **Pickups** bob up and down where a destroyed bot was. Shoot one before it
   fades to collect it:
   - pizza (health)
   - coffee (overdrive)

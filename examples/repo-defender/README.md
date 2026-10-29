@@ -2,62 +2,78 @@
 
 ![Menu icon](preview/icon_tiles_x3.png)
 
-A tongue-in-cheek first-person shooter: bugs, hallucinations and worse are
-coming for your main branch. It plays seated.
+A tongue-in-cheek first-person shooter: evil bots are coming for your main
+branch. It plays seated.
 
-![Enemies in play, and each one up close](preview/enemies.png)
+![Bots in play, and each one up close](preview/bots.png)
 
 ## How it plays
 
 - **Aim** by turning your body (or just the badge) about 30 degrees either way.
   In settings you can switch to steering by tilting the badge.
-- **Your weapon fires by itself.** Left and Right switch weapons, and **Down**
-  (right edge) reloads early. Weapons you aren't holding slowly refill, a full
-  magazine in about 6 s. Each one suits different situations:
+- **Your weapon fires by itself.** **Down** (right edge) reloads early. You
+  start with LINT, and win the others from upgrade cards. Left and Right switch
+  between the weapons you have, and the ones you aren't holding slowly refill,
+  a full magazine in about 6 s. Each one suits different situations:
   - **LINT**: green, rapid fire, a 30-round magazine.
   - **REVIEW**: blue, heavy shots that **pierce** through everything in a line,
     4 rounds.
   - **REVERT**: orange, a wide spread of 5 pellets, 3 blasts. Good against
     anything swaying, up close.
-- **Enemies** each come at you their own way:
+- **Bots** are all evil heads with red eyes, and each kind comes at you its own
+  way:
 
-  | Enemy | Approach | Health | Up close |
+  | Bot | Approach | Health | Up close |
   | --- | --- | --- | --- |
-  | Bug | fastest, straight at you | 4 | a red beetle, legs going |
-  | node_modules | slowest, straight, tanky | 15 (3 REVIEW shots) | a cardboard box that dents as you hit it |
-  | Hallucination | sways side to side, medium speed | 2 | a flickering ghost with a "?" |
-  | Rogue agent | slow boss, every third release | 30 | a robot with a terminal for a face, prompt blinking |
+  | Bug | fastest, straight at you | 4 | two antennae, angry brows and fangs |
+  | node_modules | slowest, straight, tanky | 15 (3 REVIEW shots) | a wide riveted head with one long eye slit, denting as you hit it |
+  | Hallucination | sways side to side, medium speed | 2 | a flickering dome with mismatched eyes and a "?" |
+  | Rogue agent | slow boss, every third release | 30 | horns, three eyes, and a terminal for a mouth, prompt blinking |
 
-- **Pickups** bob up and down where a destroyed enemy was. Shoot one within
-  4.5 s to collect it:
+- **Pickups** bob up and down where a destroyed bot was. Shoot one within 4.5 s
+  to collect it:
   - **Pizza**: +25 health.
   - **Coffee**: overdrive, double fire rate for 5 s.
   - **Cache Hit**: a shield back. It only drops once you have shields.
-  - **rm -rf**: deletes everything on the field, except the rogue agent, which
+  - **rm -rf**: deletes every bot on the field, except the rogue agent, which
     had backups.
 - **Upgrades.** Each wave is a "release" (v0.1.0 and up). When one ships, the
   game freezes on three upgrade cards. Left and Right choose, and enter takes
   it.
-- **Shields** stop an enemy completely. Without one, an enemy that reaches you
-  merges into main and costs you health.
+- **Shields** stop a bot completely. Without one, a bot that reaches you merges
+  into main and costs you health.
 
 ## Upgrades
 
-Every run starts from `BASE_STATS`. Each upgrade changes one stat, and its card
-shows the stat now and after:
+![The upgrade cards: a new weapon, a weapon boost and a stat](preview/cards.png)
+
+Each release offers three different cards, drawn from the stat cards and the
+weapon cards together. Every card shows what it changes, now and after.
+
+**Weapon cards** give you a weapon you don't have yet, straight into your hands.
+Once you have it, the same weapon's card improves it instead:
+
+| Weapon | Without it | Once you have it |
+| --- | --- | --- |
+| LINT (green) | You start with it. | **More Lint Rules**: +10 rounds per magazine |
+| REVIEW (blue) | **Code Review**: unlocks it | **Senior Reviewer**: +2 damage per shot |
+| REVERT (orange) | **git revert**: unlocks it | **Revert Harder**: +1 pellet in the spread |
+
+**Stat cards** each change one stat, for every weapon. Every run starts from
+`BASE_STATS`:
 
 | Upgrade | Flavour | Effect |
 | --- | --- | --- |
 | Larger Runners | Your CI finally got the good machines. | +15% fire rate |
 | CODEOWNERS | Nothing gets through without your say-so. | +1 damage on every hit |
 | Copilot | Fight AI with AI. Seems only fair. | +25% damage |
-| Bug Bounty | Bugs drop loot now. Finders keepers! | +8% pickup chance (from 10%) |
+| Bug Bounty | Bots drop loot now. Finders keepers! | +8% pickup chance (from 10%) |
 | Automated PR Review | Reloads approve themselves. LGTM! | 15% faster reloads (from 1.2 s) |
 | Branch Protection | main has been hitting the gym. | +20 max health (from 100), and heals 20 |
-| Two-Factor Auth | Bugs never have their phone on them. | +1 recharging shield, up to 3 |
+| Two-Factor Auth | Bots never have their phone on them. | +1 recharging shield, up to 3 |
 
 Damage per pellet is `(weapon damage + flat) × (1 + increased)`. A shield comes
-back 8 s after an enemy last reached you, then one every 8 s.
+back 8 s after a bot last reached you, then one every 8 s.
 
 ## Buttons and screens
 
@@ -87,8 +103,8 @@ There's more on screen:
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
 It's drawn entirely with rectangles, triangles, circles, lines and text, with
-no image assets except the logo. Far-off enemies are drawn as a single shape,
-and only close ones get detail.
+no image assets except the logo. Far-off bots are drawn as a head and a band of
+red eyes, and only close ones get detail.
 
 ## How aiming works
 
@@ -102,7 +118,7 @@ and only close ones get detail.
 - **Tilt** reads the accelerometer's sideways component against how the badge
   was held at the start, or at the last Reset origin. Past a small dead zone,
   turning speeds up to 70°/s.
-- **One projection for everything.** The grid, skyline, enemies, pickups, shots
+- **One projection for everything.** The grid, skyline, bots, pickups, shots
   and hit tests all go through the same `View`, so `YAW_SIGN` is the only
   direction choice.
 
@@ -111,26 +127,27 @@ Tuning knobs, at the top of the app:
 - **Aim:** `YAW_LIMIT`, `YAW_SIGN`, `HFOV`, `TILT_*`.
 - **Pace:** `WAVE_SECONDS`, and the spawn mix and curve in `Game.spawn` and
   `Game.update`.
-- **Enemies and weapons:** the `ENEMIES` and `WEAPONS` tables, and
-  `HOLSTER_REFILL`.
-- **Progression:** `BASE_STATS`, `UPGRADES`, `PICKUPS`, and the shield and
-  pickup timings.
+- **Bots and weapons:** the `BOTS` and `WEAPONS` tables, and `HOLSTER_REFILL`.
+- **Progression:** `BASE_STATS`, `UPGRADES`, `WEAPON_CARDS`, `PICKUPS`, and the
+  shield and pickup timings.
 
 ## Testing the rules on the badge
 
 [`selftest.py`](selftest.py) runs the game's own code on the badge with its
-run loop swapped for 19 checks. They cover:
+run loop swapped for 26 checks. They cover:
 
 - firing, reload timing, early reloads and holster refills
-- each enemy's health, and REVIEW piercing through a line
+- starting with LINT, each weapon card unlocking or boosting its weapon, and
+  Left and Right skipping weapons you don't have
+- each bot's health, and REVIEW piercing through a line
 - every pickup, including rm -rf sparing the boss
-- shields stopping an enemy and recharging
+- shields stopping a bot and recharging
 - the upgrade offers
 - Reset origin, and which way tilt turns
-- every screen and enemy drawing
+- every screen and bot drawing
 
-Then it measures the frame rate of a busy scene. All 19 checks pass. The busy
-scene, with 12 enemies and 4 pickups at once, runs at about 22 fps; normal play
+Then it measures the frame rate of a busy scene. All 26 checks pass. The busy
+scene, with 12 bots and 4 pickups at once, runs at about 24 fps; normal play
 has far fewer on screen. How to run it is at the top of the file.
 
 ## The menu icon
