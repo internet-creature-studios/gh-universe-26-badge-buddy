@@ -17,7 +17,8 @@ python3 tools/deploy.py badge/apps/repo_defender
 Open **Repo Defender** in the badge menu, press **Enter (↩)** to start, and
 hold the badge still for the initial aiming calibration. Turn to aim; your
 weapon fires automatically. **Down** reloads, **Left / Right** switches
-unlocked weapons, **Enter** pauses, **Up** opens settings, and **Back** exits.
+unlocked weapons, **Enter** pauses (**Quit** there exits), and **Up** opens
+settings.
 Left, Right, and Enter are on the bottom row; Up and Down are on the right
 edge. [Buttons and screens](#buttons-and-screens) covers the menus in detail.
 
@@ -25,7 +26,7 @@ The game and its logo are ready to install. For its custom menu icon, use the
 full install in the installation guide, which explains the shared menu
 files it replaces.
 
-![Bots in play, and each one up close](preview/bots.png)
+![Bots in play, each one up close, and node_modules losing its armour, captured from the badge](preview/bots.png)
 
 ## How it plays
 
@@ -35,26 +36,33 @@ files it replaces.
   start with LINT, and win the others from upgrade cards. Left and Right switch
   between the weapons you have, and the ones you aren't holding slowly refill,
   a full magazine in about 6 s. Each one suits different situations:
-  - **LINT**: green, rapid fire, a 30-round magazine.
+  - **LINT**: green, rapid fire, a 60-round magazine.
   - **REVIEW**: blue, heavy shots that **pierce** through everything in a line,
-    4 rounds.
-  - **REVERT**: orange, a wide spread of 5 pellets, 3 blasts. Good against
+    8 rounds.
+  - **REVERT**: orange, a wide spread of 5 pellets, 6 blasts. Good against
     anything swaying, up close.
-- **Bots** are all evil heads with red eyes, and each kind comes at you its own
-  way:
+- **Bots** are neon wireframe creatures with white-hot eyes, and each kind comes
+  at you its own way:
 
-  | Bot | Approach | Health | Up close |
+  | Bot | Approach | Health | Looks like |
   | --- | --- | --- | --- |
-  | Bug | fastest, straight at you | 4 | two antennae, angry brows and fangs |
-  | node_modules | slowest, straight, tanky | 15 (3 REVIEW shots) | a wide riveted head with one long eye slit, denting as you hit it |
-  | Hallucination | sways side to side, medium speed | 2 | a flickering dome with mismatched eyes and a "?" |
-  | Rogue agent | slow boss, every third release | 30 | horns, three eyes, and a terminal for a mouth, prompt blinking |
+  | Bug | fastest, straight at you | 3 | a yellow six-legged mite, scuttling |
+  | node_modules | slowest, straight, tanky | 10 (2 REVIEW shots) | a cyan domed pillbug whose armour drops off as you hit it |
+  | Hallucination | sways side to side, medium speed | 2 | a pink jellyfish with mismatched eyes, tentacles rippling, turning as it sways |
+  | Rogue agent | slow boss, every third release | 30 | a red horned dragon, wings beating |
+
+  A health bar shows under anything tougher than a hallucination once you've
+  hurt it. A hit flashes a close bot white, and makes a distant one pop.
 
 - **Pickups** sometimes drop when you destroy a bot. One lands 12° to 19° to the
   side of where you're aiming, so you see it before you shoot it, and bobs up
   and down. Shoot it within 4.5 s to collect it:
+
+  ![Coffee and pizza near and far, then a Cache Hit and rm -rf, captured from the badge](preview/pickups.png)
+
   - **Pizza**: +25 health.
-  - **Coffee**: overdrive, double fire rate for 5 s.
+  - **Coffee**: overdrive for 5 s. Every weapon you have is filled, fires twice
+    as fast, and uses no ammo until it ends.
   - **Cache Hit**: a shield back. It only drops once you have shields.
   - **rm -rf**: deletes every bot on the field, except the rogue agent, which
     had backups.
@@ -126,21 +134,49 @@ The side buttons always mean the same thing, and overlays beside them show it:
 - **Enter** starts a game, and in a game pauses it: Resume, Restart or Quit.
   Down (or Left and Right) choose, and enter confirms. Resume is the default,
   so enter twice is pause and unpause.
-- **Back** exits at any time.
+- **To exit,** pause with enter and choose Quit. Home also exits.
 
 There's more on screen:
 
 - **The splash** shows the studio's logo, a line at a time, then the pink `:3`.
-- **The title and menus** point at the buttons they use: a glowing copy of the
-  printed `↩` and an arrow for enter. The upgrade screen puts a `<`, `>` and ✓
-  right over Left, Right and enter. The positions come from
+- **Every screen marks the buttons it uses** with glowing, bobbing marks right
+  over them: a ✓ over enter, and on the upgrade screen, a `<` and `>` over Left
+  and Right. The positions come from
   [docs/button_positions.json](../../docs/button_positions.json).
 - **The best score and settings** are kept in `/state/repo_defender.json`.
 
 The app is [`badge/apps/repo_defender/__init__.py`](../../badge/apps/repo_defender/__init__.py).
-It's drawn entirely with rectangles, triangles, circles, lines and text, with
-no image assets except the logo. Far-off bots are drawn as a head and a band of
-red eyes, and only close ones get detail.
+Its only image asset is the logo. Everything else is drawn with shapes.
+
+## How the bots and pickups are drawn
+
+The creatures were designed as 3D wireframes (see
+[design/enemies](../../design/enemies)). Each is a list of points and the
+lines between them, and the game turns them a little to show their depth.
+Each frame of animation is its own model: the bug's legs, the jellyfish's
+tentacles, the dragon's wings, and node_modules at four levels of damage.
+
+- **Native shapes.** All of a model's lines are combined into one
+  `shape` (`shape.line` per line, then `shape.combine`), and the badge's
+  vector renderer draws the lot in one call. A dim, wider glow goes under a
+  bright 1.3 px core. Drawing the lines one Python call at a time cost about
+  twice as much, without the glow.
+- **A ladder of sizes.** Line widths are fixed when a shape is built, so each
+  model is built at radii 1.5x apart (`MODEL_SIZES`) and drawn at the nearest,
+  scaled with a `mat3` transform. A negative x scale mirrors it, so bots face
+  the middle of the screen.
+- **Baked images for small bots.** A shape costs about the same however small
+  it's drawn, so the first five sizes are drawn once, antialiased, into
+  images, which `screen.blit` scales to the exact size. That took 12 distant
+  bots from 39 ms to about 11.
+- **Low-poly pickups.** The coffee and pizza (see
+  [design/powerups](../../design/powerups)) are filled triangles, flat-shaded
+  in three tones by how each faces the light and drawn far to near. That's
+  too many triangles to draw every frame, so each frame of them (the coffee's
+  six of steam, the pizza's one) is baked into images at two sizes, and
+  scaled into place like the distant bots.
+- **Built ahead.** All 79 bot models and 7 pickup frames take about 2.1 s and
+  880 KB to build, a few each frame behind the splash and title screens.
 
 ## Customize the game
 
@@ -172,14 +208,19 @@ These constants and tables are near the top of the app:
 - **Pace:** `WAVE_SECONDS`, and the spawn mix and curve in `Game.spawn` and
   `Game.update`.
 - **Bots and weapons:** the `BOTS` and `WEAPONS` tables, and `HOLSTER_REFILL`.
+- **Bot looks:** `MODELS` and the model functions, `NEON_*`, `MODEL_SIZES` and
+  `SPRITE_SIZES`.
 - **Progression:** `BASE_STATS`, `UPGRADES`, `WEAPON_CARDS`, `PLUS_CHANCE`,
   `PICKUPS`, `PICKUP_OFFSET`, and the shield and pickup timings.
 
 ## Testing the rules on the badge
 
 [`selftest.py`](selftest.py) runs the game's own code on the badge with its
-run loop swapped for 34 checks. They cover:
+run loop swapped for 36 checks. They cover:
 
+- every bot model building, with its time, memory, and what a garbage
+  collection then costs
+- that the world covers every row of the screen, so nothing leaves trails
 - firing, reload timing, early reloads and holster refills
 - starting with LINT, each weapon card unlocking or boosting its weapon, and
   Left and Right skipping weapons you don't have
@@ -194,9 +235,10 @@ run loop swapped for 34 checks. They cover:
 - Reset origin, and which way tilt turns
 - every screen and bot drawing
 
-Then it measures the frame rate of a busy scene. All 34 checks pass. The busy
-scene, with 12 bots and 4 pickups at once, runs at about 22 to 24 fps; normal
-play has far fewer on screen. How to run it is at the top of the file.
+Then it measures the frame rate of a busy scene. All 36 checks pass. The busy
+scene, with 12 bots and 4 pickups at once, runs at about 19 to 21 fps (the
+old flat heads managed 21 to 24); normal play has far fewer on screen. How to
+run it is at the top of the file.
 
 ## The menu icon
 

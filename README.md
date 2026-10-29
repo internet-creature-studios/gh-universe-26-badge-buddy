@@ -15,9 +15,9 @@ recovering when something goes wrong.
 | **Internet Creature** | The studio's logo over live parallax hills. Tilt the badge to make them race left or right, at about 30 fps. Includes a blinking `:3` menu icon. | [Controls](#launch-and-controls) · [How it's made](examples/internet-creature-studios/README.md) |
 | **Repo Defender** | Defend your main branch from rogue AI bots. Turn to aim, fire automatically, and earn weapons and upgrades between releases. Playable seated. | [Controls](#launch-and-controls) · [Game guide](examples/repo-defender/README.md) |
 
-![Internet Creature's rolling hills at four moments](examples/internet-creature-studios/preview/hills_layers.png)
+<img src="examples/internet-creature-studios/preview/hills.png" alt="Internet Creature's logo over its hills" height="300"> <img src="examples/internet-creature-studios/preview/irl.jpg" alt="Internet Creature on a badge, worn at GitHub Universe" height="300">
 
-<img src="examples/repo-defender/preview/bots.png" alt="Repo Defender gameplay and bots captured from the badge" width="640">
+<img src="examples/repo-defender/preview/gameplay.png" alt="Repo Defender in play, captured from the badge" height="300"> <img src="examples/repo-defender/preview/irl.jpg" alt="Repo Defender being played on a badge" height="300">
 
 The apps and their built assets are included. You don't need to generate
 images or compile anything to install them.
@@ -122,8 +122,8 @@ bottom row; Up and Down are on the right edge.
 ### Internet Creature
 
 - **Tilt left or right** to steer the hills. Held level, they drift gently.
-- **Hold Left + Right together** to exit to the menu. Back, Menu, or Home
-  also exits when available on the firmware.
+- **Press Enter (↩) twice** to exit to the menu. Other buttons only show a
+  reminder of that, so it's safe to leave running. Home also exits.
 
 ### Repo Defender
 
@@ -138,7 +138,7 @@ the initial aiming calibration. Your weapon fires automatically.
 | Choose an upgrade | Left / Right, then Enter |
 | Pause / resume | Enter opens the pause menu; Enter again resumes by default |
 | Open / close settings | Up, after the splash screen |
-| Exit the app | Back |
+| Exit the app | Enter to pause, then Quit |
 
 In settings, Down moves between rows and Enter selects. **Turning** switches
 between rotate and tilt aiming; **Reset origin** recenters your aim. See the
@@ -207,8 +207,9 @@ For disk mode, crashes, and known calls that hang the badge, see
 badge/      Files to install; mirrors the badge's /system paths
 stock/      Original firmware files, kept for reference and restoration
 examples/   App guides, asset scripts, source images, and previews
-tools/      Deployment, menu icons, and button-position tools
+tools/      Deployment, menu icons, button positions, and screen captures
 docs/       Hardware, API, workflow, menu, and performance notes
+design/     Design proposals for the apps, and the scripts that render them
 ```
 
 Never copy, print, or commit the badge's `/system/secrets.py`.

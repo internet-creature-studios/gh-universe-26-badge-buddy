@@ -61,9 +61,11 @@ finally:
 | `image.load(path_or_bytes)` | Loads a PNG or JPEG |
 | `img.load_into(path_or_bytes)` | Decodes into an existing image of the same size, with no allocation. **Never on `screen`: that hangs the badge.** |
 | `img.window(x, y, w, h)` | A view of part of an image, with no copy (~0.04 ms). It blits like any image. |
-| `img.raw` | A live `bytearray` view of the pixels: RGBA8888, `stride = w * 4`. `screen.raw` is RGB565. |
+| `img.raw` | A live `bytearray` view of the pixels: RGBA8888, `stride = w * 4`. `screen.raw` is RGB565, little-endian: saving it captures the screen ([workflow.md](workflow.md#capturing-the-screen)). |
 | `img.get(x, y)` | A `color` |
 | `screen.blit(img, vec2(x, y))` | Alpha-composites. Off-screen parts are clipped at no cost. |
+| `screen.blit(img, rect(x, y, w, h))` | Scales the image to fill the rect, cheaply: 32 x 32 to 64 x 64 took 0.57 ms. |
+| `screen.blit(img, src, dst)` | The part of the image in `rect` `src`, scaled into `rect` `dst`. |
 | `screen.pen = color.rgb(r, g, b[, a])` | Then `rectangle`, `clear`, `text`, `shape`, ... |
 | `screen.antialias` | `image.OFF`, `image.X2` or `image.X4`. Blits ignore it. |
 | `screen.font = font.<name>` | Fonts seen: `font.salty`, `font.ignore`, `font.absolute` |
@@ -75,6 +77,12 @@ Images also have filters that haven't been tested here: `blur`, `dither`,
 
 There's no RGB565 image type, so every blit converts RGBA into the screen's
 format.
+
+**Images can be drawn on**, like the screen. Each has its own `pen`,
+`antialias` and `fill_rule`, and `shape`, `rectangle`, `circle` and the rest
+work on it. A new `image(w, h)` starts fully transparent. That makes it cheap
+to draw something complicated once, with `image.X4` antialiasing, and blit it
+every frame after (Repo Defender's distant bots).
 
 ## Shapes
 
@@ -91,12 +99,29 @@ screen.shape(s)
 The menu's icons and tile animations are drawn this way. See
 [menu.md](menu.md).
 
+| Call | Notes |
+| --- | --- |
+| `shape.line(x0, y0, x1, y1, width)` | A line as a filled shape. The width is required. |
+| `shape.combine([s1, s2, ...])` | One shape from many, drawn in one call: a whole wireframe, say. |
+| `shape.stroke(s, width)` or `s.stroke(width)` | An outline of `s`, as a shape. `shape.PATH_OPEN`, `JOIN_*` and `CAP_*` exist for it. |
+| `shape.circle`, `rectangle`, `rounded_rectangle`, `regular_polygon`, `star`, `arc`, `pie`, `squircle`, `ellipse` | Not tried here yet. |
+| `s.bounds()` | A `rect`, after the transform. |
+| `mat3().translate(x, y).scale(sx, sy)` | `scale` takes one or two numbers, not a `vec2`. A negative `sx` mirrors. |
+
+- **Widths are part of the shape.** A transform scales them along with
+  everything else, so lines drawn at 10x get 10x thicker. To keep a fixed
+  width in pixels, build the shape at a few sizes and pick the nearest.
+- **Set the fill rule.** At the REPL it starts as `image.EVEN_ODD`, where
+  overlapping parts cancel out and leave holes. The menu sets
+  `image.NON_ZERO`, where they add up. An app shouldn't rely on either.
+
 ## Pointing at a button
 
 Players won't know which physical button is "Select". Show them: draw toward
 the button's spot beside the screen ([hardware.md](hardware.md#buttons)).
-Repo Defender's title screen does it with a glowing copy of the `↩` printed
-beside enter, and a bobbing arrow down at it:
+An arrow bobbing down at it works (below). Repo Defender puts a glowing,
+bobbing mark right over each button it uses instead: a checkmark over enter,
+and `<` and `>` over Left and Right.
 
 ```python
 ENTER_X = 255   # BUTTON_SELECT: below the bottom edge, at this x

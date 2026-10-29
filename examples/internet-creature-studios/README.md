@@ -18,9 +18,9 @@ python3 tools/deploy.py badge/apps/internet_creature --dry-run
 python3 tools/deploy.py badge/apps/internet_creature
 ```
 
-Open **Internet Creature** in the badge menu. Tilt to steer; **hold Left +
-Right together** to exit. Those buttons are on the bottom row. Back, Menu,
-or Home also exits when available on the firmware.
+Open **Internet Creature** in the badge menu. Tilt to steer; **press Enter
+(↩) twice** to exit. Enter is on the bottom row. Other buttons only show a
+reminder of that, so it's safe to leave running. Home also exits.
 
 All scene assets are included; no rendering step is needed to run the app.
 For the custom menu icon and its animation, use the full install in the

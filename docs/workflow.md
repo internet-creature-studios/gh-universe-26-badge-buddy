@@ -179,6 +179,31 @@ scene's frame rate.
 When an assertion depends on randomness, such as a weaving bot's starting
 point, pin it in the test. Otherwise the test flakes.
 
+## Capturing the screen
+
+`screen.raw` is the screen's pixels, so saving it is a screenshot of exactly
+what the badge shows. In a test that runs the app's code (as above), draw a
+scene, then:
+
+```python
+display.update()
+with open("/dev_app/shot.raw", "wb") as f:
+    f.write(screen.raw)   # 320 x 240 x 2 bytes: 150 KB
+```
+
+Copy it off and convert it:
+
+```bash
+uvx mpremote connect YOUR_BADGE_PORT fs cp :/dev_app/shot.raw shot.raw + fs rm :/dev_app/shot.raw
+python3 tools/raw2png.py shot.raw
+```
+
+- **The root fills up fast.** Each capture is 150 KB of the root's ~1 MB, and
+  a full disk fails with `OSError: 28`. Remove captures as you copy them.
+- **The REPL is in low resolution.** Code run with `exec` draws on a 160 x 120
+  screen unless it calls `badge.mode(HIRES)` first. The capture's size says
+  which it was.
+
 ## Benchmarking
 
 Time code on the device with `time.ticks_us()`. Inside an app, print a summary

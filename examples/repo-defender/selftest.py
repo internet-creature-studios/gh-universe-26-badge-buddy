@@ -2,10 +2,10 @@
 
 Copy the app to /dev_game on the badge's writable root and run this there:
 
-    uvx mpremote connect /dev/cu.usbmodem1101 exec "import os; os.mkdir('/dev_game'); os.mkdir('/dev_game/assets')" \
+    uvx mpremote connect YOUR_BADGE_PORT exec "import os; os.mkdir('/dev_game'); os.mkdir('/dev_game/assets')" \
         + fs cp badge/apps/repo_defender/__init__.py :/dev_game/__init__.py \
         + fs cp badge/apps/repo_defender/assets/studio_logo.png :/dev_game/assets/studio_logo.png
-    uvx mpremote connect /dev/cu.usbmodem1101 exec "$(cat examples/repo-defender/selftest.py)"
+    uvx mpremote connect YOUR_BADGE_PORT exec "$(cat examples/repo-defender/selftest.py)"
 
 It runs the game's own source with its run loop swapped for these checks,
 prints PASS or FAIL for each, then plays a busy scene for six seconds and
@@ -18,6 +18,8 @@ import os
 os.chdir('/dev_game')
 src = open('__init__.py').read()
 tests = """
+import gc
+
 def check(name, ok, detail=""):
     print("SELFTEST", "PASS" if ok else "FAIL", name, detail)
 
@@ -41,13 +43,27 @@ def selftest():
     g.settings = dict(DEFAULT_SETTINGS)  # in memory only: never saved here
     g.aim.calibrate("rotate", 0.3)
 
+    gc.collect()
+    free, t, count = gc.mem_free(), time.ticks_ms(), len(g.unbuilt)
+    g.build_models()
+    took = time.ticks_diff(time.ticks_ms(), t)
+    gc.collect()
+    built = (sum(1 for frames in g.models.values() for sizes in frames for m in sizes if m is not None)
+             + sum(1 for frames in g.pickup_arts.values() for art in frames if art is not None))
+    t = time.ticks_us()
+    gc.collect()
+    collect = time.ticks_diff(time.ticks_us(), t) / 1000
+    check("every bot model builds", count > 0 and not g.unbuilt and built == count,
+          "%d models in %d ms, %d KB, %d KB free, a garbage collection takes %.1f ms" % (
+              count, took, (free - gc.mem_free()) // 1024, gc.mem_free() // 1024, collect))
+
     fresh(g)
     run_for(g, 1.0, clear=True)
-    check("weapons fire by themselves", g.ammo[0] < 30, "LINT has %.0f of 30 after 1s" % g.ammo[0])
+    check("weapons fire by themselves", g.ammo[0] < 60, "LINT has %.0f of 60 after 1s" % g.ammo[0])
 
     fresh(g)
     t, empty, full = 0.0, None, None
-    while t < 7.0:
+    while t < 11.0:
         g.update(0.02)
         t += 0.02
         g.bots = []
@@ -55,7 +71,7 @@ def selftest():
             empty = t
         if empty is not None and full is None and g.reloading[0] == 0:
             full = t
-    check("LINT empties after 30 shots", empty is not None and abs(empty - 29 / 7.0) < 0.15, "at %.2fs" % (empty or -1))
+    check("LINT empties after 60 shots", empty is not None and abs(empty - 59 / 7.0) < 0.2, "at %.2fs" % (empty or -1))
     check("an empty magazine reloads in 1.2s", full is not None and abs(full - empty - 1.2) < 0.1,
           "took %.2fs" % ((full or 0) - (empty or 0)))
 
@@ -64,16 +80,16 @@ def selftest():
     g.reload_now()
     reloading = g.reloading[0] > 0
     run_for(g, 1.25, clear=True)
-    check("Down reloads early", reloading and g.ammo[0] >= 29, "ammo %.1f" % g.ammo[0])
+    check("Down reloads early", reloading and g.ammo[0] >= 59, "ammo %.1f" % g.ammo[0])
 
     fresh(g)
     g.owned[1] = True
     g.ammo[1] = 0.0
     g.cooldown = 999  # hold fire, so only the refill moves
     run_for(g, 3.0, clear=True)
-    expect = 4 / (HOLSTER_REFILL * 1.2) * 3.0
+    expect = 8 / (HOLSTER_REFILL * 1.2) * 3.0
     check("a holstered weapon refills slowly", abs(g.ammo[1] - expect) < 0.2,
-          "REVIEW %.2f of 4 after 3s (expect %.2f)" % (g.ammo[1], expect))
+          "REVIEW %.2f of 8 after 3s (expect %.2f)" % (g.ammo[1], expect))
 
     # Weapon cards.
     fresh(g)
@@ -106,7 +122,7 @@ def selftest():
     g.ammo[0] = 0.0
     g.reload_now()
     run_for(g, 1.25, clear=True)
-    check("a LINT card adds 10 rounds a magazine", g.magazine[0] == 40 and g.ammo[0] >= 39,
+    check("a LINT card adds 10 rounds a magazine", g.magazine[0] == 70 and g.ammo[0] >= 69,
           "magazine %d, ammo %.1f" % (g.magazine[0], g.ammo[0]))
     g.owned = [True, False, True]
     g.weapon = 0
@@ -141,14 +157,14 @@ def selftest():
     name = g.card_text(cards[1], True)[0]
     g.take_upgrade(cards[1], True)
     check("Code Review+ gives REVIEW already at 7 damage", name == "Code Review+" and g.owned[1] and g.damage[1] == 7
-          and g.ammo[1] == 4, "%s: damage %d, ammo %.0f" % (name, g.damage[1], g.ammo[1]))
+          and g.ammo[1] == 8, "%s: damage %d, ammo %.0f" % (name, g.damage[1], g.ammo[1]))
     g.take_upgrade(cards[1], True)
     g.take_upgrade(cards[2], True)
     pellets = g.pellets[2]
     g.take_upgrade(cards[2], True)
     g.take_upgrade(cards[0], True)
     check("+ weapon cards on a weapon you have boost it twice", g.damage[1] == 11 and pellets == 6 and g.pellets[2] == 8
-          and g.magazine[0] == 50, "damage %d, pellets %d then %d, magazine %d" % (g.damage[1], pellets, g.pellets[2],
+          and g.magazine[0] == 80, "damage %d, pellets %d then %d, magazine %d" % (g.damage[1], pellets, g.pellets[2],
                                                                                    g.magazine[0]))
 
     fresh(g)
@@ -163,7 +179,7 @@ def selftest():
     bot.hp = 0.01
     g.hit(Shot(WEAPONS[0], 0, 0.0, 1), bot)
     check("Friday Deploy: +10% score, and bots +10% health and speed (+20% for +)",
-          abs(hp - 4.4) < 0.01 and abs(speed - 4.6 * 1.1) < 0.01 and score == 22 and g.score - score == 26,
+          abs(hp - 3.3) < 0.01 and abs(speed - 4.6 * 1.1) < 0.01 and score == 22 and g.score - score == 26,
           "hp %.2f, speed %.2f, a bug scores %d then %d" % (hp, speed, score, g.score - score))
 
     fresh(g)
@@ -205,7 +221,7 @@ def selftest():
     box.distance = 12.0
     g.bots = [box]
     run_for(g, 2.4)
-    check("3 REVIEW shots destroy node_modules", box.hp <= 0 and g.score == 50, "hp %.1f, score %d" % (box.hp, g.score))
+    check("2 REVIEW shots destroy node_modules", box.hp <= 0 and g.score == 50, "hp %.1f, score %d" % (box.hp, g.score))
 
     fresh(g, weapon=1)
     near, far = Bot("bug", 0.0), Bot("bug", 0.0)
@@ -230,14 +246,24 @@ def selftest():
     run_for(g, 0.5)
     check("shooting pizza heals 25", g.health == 75 and not g.pickups, "health %d" % g.health)
 
+    # Coffee: count shots fired, with LINT's reach stretched so none vanish.
+    reach = WEAPONS[0]["reach"]
+    WEAPONS[0]["reach"] = 1000.0
     fresh(g)
     run_for(g, 1.0, clear=True)
-    base = 30 - g.ammo[0]
+    base = len(g.shots)
     fresh(g)
+    g.owned = [True, True, False]
+    g.ammo[0], g.ammo[1], g.reloading[1] = 3.0, 0.0, 1.0
     g.collect(Pickup("coffee", 0.0, 6.0))
+    full = g.ammo[0] == 60 and g.ammo[1] == 8 and g.reloading[1] == 0
     run_for(g, 1.0, clear=True)
-    boosted = 30 - g.ammo[0]
-    check("coffee doubles the fire rate", boosted >= 1.7 * base, "%d shots a second, %d with coffee" % (base, boosted))
+    boosted, held = len(g.shots), g.ammo[0]
+    run_for(g, OVERDRIVE_SECONDS, clear=True)
+    WEAPONS[0]["reach"] = reach
+    check("coffee fills every weapon, fires twice as fast, and uses no ammo until it ends",
+          full and boosted >= 1.7 * base and held == 60 and g.overdrive == 0 and g.ammo[0] < 60,
+          "%d shots a second, %d with coffee, holding at %.0f, %.0f after" % (base, boosted, held, g.ammo[0]))
 
     fresh(g)
     g.cooldown = 999
@@ -280,9 +306,18 @@ def selftest():
     g.aim.reset_origin()
     check("Reset origin makes this way straight ahead", g.aim.yaw == 0 and g.aim.centre == 12.0, "yaw %.1f" % g.aim.yaw)
     g.aim.level = 0.0
-    right, level, left = g.aim.tilt_rate(-0.3 * 16384), g.aim.tilt_rate(0.0), g.aim.tilt_rate(0.6 * 16384)
+    right, level, left = g.aim.tilt_rate(0.3 * 16384), g.aim.tilt_rate(0.0), g.aim.tilt_rate(-0.6 * 16384)
     check("tilting turns: right dip turns right, level stops", right > 0 and level == 0 and left == -TILT_DPS,
           "%.1f, %.1f, %.1f deg/s" % (right, level, left))
+
+    # The screen isn't cleared between frames, so the world has to cover
+    # every pixel, or whatever moves across a gap leaves trails.
+    screen.pen = color.rgb(255, 0, 255)
+    screen.clear()
+    stale = str(screen.get(0, 0))
+    g.draw_world()
+    rows = [y for y in range(HEIGHT) if any(str(screen.get(x, y)) == stale for x in (0, 100, 200, WIDTH - 1))]
+    check("the world covers every row of the screen", not rows, "rows left: %s" % rows[:8])
 
     try:
         fresh(g)
@@ -290,6 +325,9 @@ def selftest():
         for b, d in zip(g.bots, (4, 6, 9, 12)):
             b.distance = d
         g.bots[1].hp = 5  # dented
+        g.bots[0].flash = g.bots[3].flash = 0.1  # a hit: up close it flashes white, further off it pops
+        g.pickups = [Pickup(k, a, d) for k, a, d in (("pizza", -12, 7.0), ("coffee", -4, 13.0), ("cache", 4, 9.0),
+                                                       ("rmrf", 12, 9.0))]
         for state in ("title", "settings", "paused", "upgrade", "upgrade", "over"):
             g.state = state
             if state == "upgrade":
