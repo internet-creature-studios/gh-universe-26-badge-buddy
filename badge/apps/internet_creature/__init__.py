@@ -35,11 +35,12 @@ SKY_BAND_AT = vec2(0, scene["sky_top"])
 # Speed is a multiple of each layer's drift, which is the site's pace and
 # leftward. Full tilt either way races the hills past at RACE times it.
 RACE = 24.0
-# Same reading as the menu's tilt: -ax against gravity, full at about 30
-# degrees, positive when the left edge dips. Flip TILT_SIGN if the hills
-# run the opposite way to the tip.
+# The menu's tilt reading, -ax against gravity, is full at about 30 degrees
+# and positive when the left edge dips (docs/hardware.md). TILT_SIGN turns it
+# into positive for a right tip, which races the hills right. It was 1 until
+# play showed the hills running the opposite way to the tip.
 GRAVITY = 16384.0
-TILT_SIGN = 1
+TILT_SIGN = -1
 TILT_DEADZONE = 0.12
 # Tilt past the dead zone is raised to this power, so a small tip nudges the
 # hills and only a firm one sends them racing.
