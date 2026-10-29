@@ -18,11 +18,9 @@ python3 tools/deploy.py badge/apps/internet_creature --dry-run
 python3 tools/deploy.py badge/apps/internet_creature
 ```
 
-Open **Internet Creature** in the badge menu and tilt to steer. It's made to
-be left running on a badge you're wearing, so no single press leaves it: any
-button shows "press ↩ twice to exit" at the bottom, with a pointer bobbing
-down at Enter, and **two presses of Enter (↩)** in a row exit. Enter is on
-the bottom row, on the right. Home also exits, through the firmware.
+Open **Internet Creature** in the badge menu. Tilt to steer; **press Enter
+(↩) twice** to exit. Enter is on the bottom row. Other buttons only show a
+reminder of that, so it's safe to leave running. Home also exits.
 
 All scene assets are included; no rendering step is needed to run the app.
 For the custom menu icon and its animation, use the full install in the
@@ -36,10 +34,6 @@ Its feel is set by constants at the top of `__init__.py`: `RACE`,
 
 After editing, deploy the same app folder again. To try changes without an
 installed copy, use the [temporary app workflow](../../docs/workflow.md#trying-an-app-without-installing-it).
-
-How long the exit hint stays up, and so how close together the two presses
-of Enter must be, is `HINT_MS` (3 s). The hint sits over the nearest hills,
-which repaint every row each frame, so the next redraw wipes it.
 
 ## Preview the supplied assets on your Mac
 

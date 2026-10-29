@@ -1,30 +1,21 @@
 # GitHub Universe '26 Badge Buddy
 
-Tools, notes, and a working example for building your own apps for the GitHub
-Universe 2026 badge — a Pimoroni Badger 2350 running MonaOS.
-It's written so you (or your AI) can start building right away, without
-rediscovering how the badge works:
-
-* [how to get code onto it](docs/workflow.md)
-* [how to recover it if something goes wrong](docs/workflow.md#reset-and-recovery)
-* [what it can do (the API)](docs/api.md)
-* [what things cost (speed and memory)](docs/performance.md)
+Two apps, deployment tools, and practical notes for making things on the
+GitHub Universe 2026 badge: a Pimoroni Badger 2350 running MonaOS.
 
 To try the apps, follow [Install on your badge](#install-on-your-badge).
 To make your own, start with [Build and customize](#build-and-customize).
+The notes cover getting code onto the badge, its API and performance, and
+recovering when something goes wrong.
 
 ## What's included
 
 | App | What it does | More |
 | --- | --- | --- |
-| **Internet Creature** | The studio's logo over live parallax hills. Tilt the badge to make them race left or right, at about 30 fps. Made to be left running, it only exits on two presses of Enter. Includes a blinking `:3` menu icon. | [Controls](#launch-and-controls) · [How it's made](examples/internet-creature-studios/README.md) |
-| **Repo Defender** | Defend your main branch from rogue AI bots, neon wireframe creatures designed with Grok. Turn to aim, fire automatically, and earn weapons and upgrades between releases. Playable seated. | [Controls](#launch-and-controls) · [Game guide](examples/repo-defender/README.md) |
+| **Internet Creature** | The studio's logo over live parallax hills. Tilt the badge to make them race left or right, at about 30 fps. Includes a blinking `:3` menu icon. | [Controls](#launch-and-controls) · [How it's made](examples/internet-creature-studios/README.md) |
+| **Repo Defender** | Defend your main branch from rogue AI bots. Turn to aim, fire automatically, and earn weapons and upgrades between releases. Playable seated. | [Controls](#launch-and-controls) · [Game guide](examples/repo-defender/README.md) |
 
-**Internet Creature**
-
-<img src="examples/internet-creature-studios/preview/hills.png" alt="The studio's logo over its hills" height="300"> <img src="examples/internet-creature-studios/preview/irl.jpg" alt="The app on a badge, worn at GitHub Universe" height="300">
-
-**Repo Defender**
+<img src="examples/internet-creature-studios/preview/hills.png" alt="Internet Creature's logo over its hills" height="300"> <img src="examples/internet-creature-studios/preview/irl.jpg" alt="Internet Creature on a badge, worn at GitHub Universe" height="300">
 
 <img src="examples/repo-defender/preview/gameplay.png" alt="Repo Defender in play, captured from the badge" height="300"> <img src="examples/repo-defender/preview/irl.jpg" alt="Repo Defender being played on a badge" height="300">
 
@@ -131,9 +122,8 @@ bottom row; Up and Down are on the right edge.
 ### Internet Creature
 
 - **Tilt left or right** to steer the hills. Held level, they drift gently.
-- **Press Enter (↩) twice in a row** to exit to the menu. It's made to be left
-  running, so no single press leaves it: any button shows "press ↩ twice to
-  exit" at the bottom. Home also exits, through the firmware.
+- **Press Enter (↩) twice** to exit to the menu. Other buttons only show a
+  reminder of that, so it's safe to leave running. Home also exits.
 
 ### Repo Defender
 

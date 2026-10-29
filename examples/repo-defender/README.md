@@ -221,7 +221,6 @@ run loop swapped for 36 checks. They cover:
 - every bot model building, with its time, memory, and what a garbage
   collection then costs
 - that the world covers every row of the screen, so nothing leaves trails
-
 - firing, reload timing, early reloads and holster refills
 - starting with LINT, each weapon card unlocking or boosting its weapon, and
   Left and Right skipping weapons you don't have
